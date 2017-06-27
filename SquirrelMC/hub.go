@@ -2,7 +2,6 @@ package main
 
 import (
 	"net"
-	"time"
 )
 
 type TCPHub struct {
@@ -41,7 +40,7 @@ func (s *TCPHub) RegisterClient() {
 func (s *TCPHub) SendMessage() {
 	for {
 		select {
-		case message := <- s.Receiver:
+		case message := <-s.Receiver:
 			s.Conn.Write(message)
 		}
 	}
@@ -49,7 +48,7 @@ func (s *TCPHub) SendMessage() {
 
 func (s *TCPHub) HandConn(conn *net.TCPConn, bytes int) {
 	s.Conn = conn
-	s.Conn.SetReadDeadline(time.Now().Add(10 * time.Minute))
+	//s.Conn.SetReadDeadline(time.Now().Add(10 * time.Minute))
 	defer s.Conn.Close()
 	for {
 		var data = make([]byte, bytes, bytes)
@@ -57,4 +56,15 @@ func (s *TCPHub) HandConn(conn *net.TCPConn, bytes int) {
 		CheckErr(err)
 		s.Broadcast <- data
 	}
+}
+
+func NewTCPHub() *TCPHub{
+	newHub := TCPHub{
+		Register:   make(chan *TCPClient, 100),
+		Unregister: make(chan *TCPClient, 100),
+		Broadcast:  make(chan []byte, 200),
+		Receiver:   make(chan []byte, 200),
+		Clients:    make(map[*TCPClient]bool),
+	}
+	return &newHub
 }

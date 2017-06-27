@@ -31,8 +31,8 @@ func ListenHub(bytes int, service string, hubtable *S.Map) {
 			conn.Read(registerInfo[:])
 			connName := string(registerInfo[:])
 
-			newHub := TCPHub{}
-			_, ok := hubtable.LoadOrStore(connName, &newHub)
+			newHub := NewTCPHub()
+			_, ok := hubtable.LoadOrStore(connName, newHub)
 			if ok {
 				conn.Write([]byte("The hub already exist!\n"))
 				conn.Close()
@@ -43,6 +43,7 @@ func ListenHub(bytes int, service string, hubtable *S.Map) {
 			go newHub.HandConn(conn, bytes)
 			go newHub.RegisterClient()
 			go newHub.SendMessage()
+			go newHub.ClientWriter()
 		}()
 	}
 }
@@ -79,7 +80,7 @@ func ListenClient(bytes int, service string, hubtable *S.Map) {
 				return
 			}
 
-			newClient := TCPClient{}
+			newClient := NewTCPClient()
 			conn.Write([]byte("Register successfully!\n"))
 			go newClient.HandConn(conn, bytes, actualHub)
 			go newClient.Broadcast()

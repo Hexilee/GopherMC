@@ -2,7 +2,6 @@ package main
 
 import (
 	"net"
-	"time"
 )
 
 type TCPClient struct {
@@ -15,14 +14,14 @@ func (s *TCPClient) HandConn(conn *net.TCPConn, bytes int,  hub *TCPHub) {
 	s.Conn = conn
 	s.Hub = hub
 	s.Hub.Register <- s
-	s.Conn.SetReadDeadline(time.Now().Add(10 * time.Minute))
+	//s.Conn.SetReadDeadline(time.Now().Add(10 * time.Minute))
 	defer s.Conn.Close()
 	for {
 		var data = make([]byte, bytes, bytes)
 		_, err := s.Conn.Read(data)
 		CheckErr(err)
 		s.Hub.Receiver <- data
-		s.Conn.Write([]byte("Received"))
+		s.Conn.Write([]byte("Received\n"))
 	}
 }
 
@@ -33,4 +32,11 @@ func (s *TCPClient) Broadcast() {
 			s.Conn.Write(message)
 		}
 	}
+}
+
+func NewTCPClient() *TCPClient {
+	newClient := TCPClient{
+		Message:make(chan []byte, 100),
+	}
+	return &newClient
 }
