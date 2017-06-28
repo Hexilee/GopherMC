@@ -5,13 +5,25 @@ import (
 )
 
 type TCPHub struct {
+	Listener   *TCPHubListener
 	Conn       *net.TCPConn
 	Clients    map[*TCPClient]bool
 	Register   chan *TCPClient
 	Unregister chan *TCPClient
 	Broadcast  chan []byte
 	Receiver   chan []byte
+	Signal     chan string
+	Name       string
 }
+
+
+func (s *TCPHub) Start (conn *net.TCPConn, MaxBytes int) {
+	s.HandConn(conn, MaxBytes)
+	go s.RegisterClient()
+	go s.SendMessage()
+	go s.ClientWriter()
+}
+
 
 func (s *TCPHub) ClientWriter() {
 	for {
@@ -58,13 +70,14 @@ func (s *TCPHub) HandConn(conn *net.TCPConn, bytes int) {
 	}
 }
 
-func NewTCPHub() *TCPHub{
+func NewTCPHub() *TCPHub {
 	newHub := TCPHub{
-		Register:   make(chan *TCPClient, 100),
-		Unregister: make(chan *TCPClient, 100),
-		Broadcast:  make(chan []byte, 200),
-		Receiver:   make(chan []byte, 200),
+		Register:   make(chan *TCPClient, 1000),
+		Unregister: make(chan *TCPClient, 1000),
+		Broadcast:  make(chan []byte, 2000),
+		Receiver:   make(chan []byte, 2000),
 		Clients:    make(map[*TCPClient]bool),
+		Signal:     make(chan string, 100),
 	}
 	return &newHub
 }

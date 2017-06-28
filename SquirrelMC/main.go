@@ -3,24 +3,39 @@ package main
 import (
 	S "golang.org/x/sync/syncmap"
 	"flag"
+	"github.com/jinzhu/configor"
+	"github.com/takama/daemon"
+	"os"
+	"log"
 )
 
 
 var (
-	clientService string
-	hubService string
-	byteMax int
+	conf string
 	hubMap = S.Map {}
 )
 
 
+
 func main() {
 
-	flag.StringVar(&clientService, "c", "0.0.0.0:8080", "the host and port your client listener bind")
-	flag.StringVar(&hubService, "h", "0.0.0.0:8888", "the host and port your hub listener bind")
-	flag.IntVar(&byteMax, "b", 512, "the maximum of the length of message")
+	flag.StringVar(&conf, "f", "./config.conf", "the path config file, the default is ./config.conf")
 	flag.Parse()
 
-	go ListenHub(byteMax, hubService, &hubMap)
-	ListenClient(byteMax, clientService, &hubMap)
+	configor.Load(&Config, conf)
+
+	srv, err := daemon.New(Config.APPName, Config.Description)
+
+	if err != nil {
+		log.Println("Error: ", err)
+		os.Exit(1)
+	}
+
+	service := NewService(&Config, srv)
+
+	service.TCPListener = NewTCPHubListener(Config.Hub.Tcp.Service)
+
+	//go ListenHub(Config.Hub.Tcp.MaxBytes, Config.Hub.Tcp.Service, &hubMap)
+	go service.TCPListener.Start(Config.Hub.Tcp.MaxBytes)
+	ListenClient(Config.Client.Tcp.MaxBytes, Config.Client.Tcp.Service, &hubMap)
 }

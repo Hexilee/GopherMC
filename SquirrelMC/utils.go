@@ -5,13 +5,37 @@ import (
 	"net"
 	S "golang.org/x/sync/syncmap"
 	"log"
+	"io"
 )
 
-func CheckErr(err error) {
+func CheckErr(err error) bool {
 	if err != nil {
 		fmt.Println(err)
+		return false
 	}
+	return true
 }
+
+
+func DealConnErr(err error, closer io.Closer) bool {
+	if err != nil {
+		closer.Close()
+		return false
+	}
+	return true
+}
+
+func SecureWrite(msg []byte, writeCloser io.WriteCloser) bool {
+	_, err := writeCloser.Write(msg)
+	return DealConnErr(err, writeCloser)
+}
+
+func SecureRead(msg []byte, ReadCloser io.ReadCloser) bool {
+	_, err := ReadCloser.Read(msg)
+	return DealConnErr(err, ReadCloser)
+}
+
+
 
 func ListenHub(bytes int, service string, hubtable *S.Map) {
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", service)
@@ -39,7 +63,8 @@ func ListenHub(bytes int, service string, hubtable *S.Map) {
 				return
 			}
 			newHub.Conn = conn
-			conn.Write([]byte("Register successfully!\n"))
+			_, err = conn.Write([]byte("Register successfully!\n"))
+			DealConnErr(err, conn)
 			go newHub.HandConn(conn, bytes)
 			go newHub.RegisterClient()
 			go newHub.SendMessage()
