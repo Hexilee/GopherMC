@@ -18,7 +18,7 @@ type TCPHub struct {
 
 
 func (s *TCPHub) Start (conn *net.TCPConn, MaxBytes int) {
-	s.HandConn(conn, MaxBytes)
+	go s.HandConn(conn, MaxBytes)
 	go s.RegisterClient()
 	go s.SendMessage()
 	go s.ClientWriter()
@@ -71,7 +71,7 @@ func (s *TCPHub) HandConn(conn *net.TCPConn, bytes int) {
 }
 
 func NewTCPHub() *TCPHub {
-	newHub := TCPHub{
+	return &TCPHub{
 		Register:   make(chan *TCPClient, 1000),
 		Unregister: make(chan *TCPClient, 1000),
 		Broadcast:  make(chan []byte, 2000),
@@ -79,5 +79,4 @@ func NewTCPHub() *TCPHub {
 		Clients:    make(map[*TCPClient]bool),
 		Signal:     make(chan string, 100),
 	}
-	return &newHub
 }

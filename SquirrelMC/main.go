@@ -33,9 +33,12 @@ func main() {
 
 	service := NewService(&Config, srv)
 
-	service.TCPListener = NewTCPHubListener(Config.Hub.Tcp.Service)
+	service.TCPHubListener = NewTCPHubListener(Config.Hub.Tcp.Service)
+	service.TCPHubListener.Service = service
 
+	service.TCPClientListener = NewTCPClientListener(Config.Client.Tcp.Service)
+	service.TCPClientListener.Service = service
 	//go ListenHub(Config.Hub.Tcp.MaxBytes, Config.Hub.Tcp.Service, &hubMap)
-	go service.TCPListener.Start(Config.Hub.Tcp.MaxBytes)
-	ListenClient(Config.Client.Tcp.MaxBytes, Config.Client.Tcp.Service, &hubMap)
+	go service.TCPHubListener.Start(Config.Hub.Tcp.MaxBytes)
+	service.TCPClientListener.Start(Config.Client.Tcp.MaxBytes, service.TCPHubListener.HubTable)
 }

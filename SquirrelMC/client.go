@@ -35,8 +35,7 @@ func (s *TCPClient) Broadcast() {
 }
 
 func NewTCPClient() *TCPClient {
-	newClient := TCPClient{
+	return &TCPClient{
 		Message:make(chan []byte, 100),
 	}
-	return &newClient
 }

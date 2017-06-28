@@ -4,7 +4,8 @@ import "github.com/takama/daemon"
 
 type Service struct {
 	daemon.Daemon
-	TCPListener *TCPHubListener
+	TCPHubListener *TCPHubListener
+	TCPClientListener *TCPClientListener
 	Signal chan string
 	Config *ConfigType
 }
