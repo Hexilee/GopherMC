@@ -1,18 +1,15 @@
 package main
 
 import (
-	S "golang.org/x/sync/syncmap"
 	"flag"
 	"github.com/jinzhu/configor"
 	"github.com/takama/daemon"
 	"os"
-	"log"
 )
 
 
 var (
 	conf string
-	hubMap = S.Map {}
 )
 
 
@@ -27,9 +24,16 @@ func main() {
 	srv, err := daemon.New(Config.APPName, Config.Description)
 
 	if err != nil {
-		log.Println("Error: ", err)
+		log.Critical("Cannot create daemon\n Error: ", err)
 		os.Exit(1)
 	}
+
+	logFile, err := os.OpenFile(Config.LogFile, os.O_WRONLY,0666)
+	if err != nil {
+		log.Critical("Cannot open log file\n Error: ", err)
+		os.Exit(1)
+	}
+	defer logFile.Close()
 
 	service := NewService(&Config, srv)
 
@@ -40,5 +44,6 @@ func main() {
 	service.TCPClientListener.Service = service
 	//go ListenHub(Config.Hub.Tcp.MaxBytes, Config.Hub.Tcp.Service, &hubMap)
 	go service.TCPHubListener.Start(Config.Hub.Tcp.MaxBytes)
-	service.TCPClientListener.Start(Config.Client.Tcp.MaxBytes, service.TCPHubListener.HubTable)
+	go service.TCPClientListener.Start(Config.Client.Tcp.MaxBytes, service.TCPHubListener.HubTable)
+	service.Logger(logFile)
 }

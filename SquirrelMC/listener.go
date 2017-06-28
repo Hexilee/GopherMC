@@ -2,7 +2,6 @@ package main
 
 import (
 	"net"
-	"log"
 	S "golang.org/x/sync/syncmap"
 )
 
@@ -31,7 +30,8 @@ func NewTCPHubListener(service string) *TCPHubListener {
 	if !CheckErr(err) {
 		return nil
 	}
-	log.Printf("Hub listener listening at %s", service)
+
+	log.Info("Hub listener listening at %s", service)
 
 	return &TCPHubListener{
 		Listener:   listener,
@@ -52,7 +52,7 @@ func NewTCPClientListener(service string) *TCPClientListener {
 	if !CheckErr(err) {
 		return nil
 	}
-	log.Printf("Client listener listening at %s", service)
+	log.Info("Client listener listening at %s", service)
 
 	return &TCPClientListener{
 		Listener: listener,
@@ -108,6 +108,7 @@ func (t *TCPHubListener) HandConn(conn *net.TCPConn, MaxBytes int) {
 	}
 	newHub.Listener = t
 	newHub.Name = connName
+	newHub.Service = t.Service
 
 	go newHub.Start(conn, MaxBytes)
 }
@@ -147,6 +148,7 @@ func (t *TCPClientListener) HandConn(conn *net.TCPConn, MaxBytes int, HubTable *
 		return
 	}
 	newClient := NewTCPClient()
+	newClient.Service = t.Service
 	go newClient.HandConn(conn, MaxBytes, actualHub)
 	go newClient.Broadcast()
 }

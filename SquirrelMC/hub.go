@@ -5,6 +5,7 @@ import (
 )
 
 type TCPHub struct {
+	Service    *Service
 	Listener   *TCPHubListener
 	Conn       *net.TCPConn
 	Clients    map[*TCPClient]bool

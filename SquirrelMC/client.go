@@ -5,6 +5,7 @@ import (
 )
 
 type TCPClient struct {
+	Service *Service
 	Conn    *net.TCPConn
 	Hub     *TCPHub
 	Message chan []byte
