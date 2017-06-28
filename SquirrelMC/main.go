@@ -28,13 +28,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	logFile, err := os.OpenFile(Config.LogFile, os.O_WRONLY,0666)
-	if err != nil {
-		log.Critical("Cannot open log file\n Error: ", err)
-		os.Exit(1)
-	}
-	defer logFile.Close()
-
 	service := NewService(&Config, srv)
 
 	service.TCPHubListener = NewTCPHubListener(Config.Hub.Tcp.Service)
@@ -45,5 +38,5 @@ func main() {
 	//go ListenHub(Config.Hub.Tcp.MaxBytes, Config.Hub.Tcp.Service, &hubMap)
 	go service.TCPHubListener.Start(Config.Hub.Tcp.MaxBytes)
 	go service.TCPClientListener.Start(Config.Client.Tcp.MaxBytes, service.TCPHubListener.HubTable)
-	service.Logger(logFile)
+	service.Logger(Config.LogFile)
 }

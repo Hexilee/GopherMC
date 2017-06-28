@@ -26,7 +26,14 @@ type Service struct {
 	Config            *ConfigType
 }
 
-func (s *Service) Logger(logFile *os.File) {
+func (s *Service) Logger(logfile string) {
+	logFile, err := os.OpenFile(logfile, os.O_WRONLY, 0666)
+	if err != nil {
+		log.Critical("Cannot open log file\n Error: ", err)
+		os.Exit(1)
+	}
+
+	defer logFile.Close()
 	backend1 := logging.NewLogBackend(logFile, "", 0)
 	backend1Formatter := logging.NewBackendFormatter(backend1, format)
 	logging.SetBackend(backend1Formatter)
@@ -38,7 +45,7 @@ func (s *Service) Logger(logFile *os.File) {
 			log.Info(info)
 		case err := <-s.Error:
 			log.Error((*err).Error())
-		case signal := <- s.Signal:
+		case signal := <-s.Signal:
 			if signal == "kill" {
 				log.Critical("Signal killed!")
 			}
