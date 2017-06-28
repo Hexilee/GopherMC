@@ -9,6 +9,7 @@ type TCPClient struct {
 	Conn    *net.TCPConn
 	Hub     *TCPHub
 	Message chan []byte
+	Signal  chan string
 }
 
 func (s *TCPClient) HandConn(conn *net.TCPConn, bytes int,  hub *TCPHub) {
@@ -27,10 +28,16 @@ func (s *TCPClient) HandConn(conn *net.TCPConn, bytes int,  hub *TCPHub) {
 }
 
 func (s *TCPClient) Broadcast() {
+	Circle:
 	for {
 		select {
 		case message := <- s.Message:
 			s.Conn.Write(message)
+		case signal := <- s.Signal:
+			if signal == "kill" {
+				s.Conn.Close()
+				break Circle
+			}
 		}
 	}
 }
@@ -38,5 +45,6 @@ func (s *TCPClient) Broadcast() {
 func NewTCPClient() *TCPClient {
 	return &TCPClient{
 		Message:make(chan []byte, 100),
+		Signal:make(chan string, 100),
 	}
 }
