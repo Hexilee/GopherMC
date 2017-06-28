@@ -5,14 +5,19 @@ import (
 	"github.com/jinzhu/configor"
 	"github.com/takama/daemon"
 	"os"
+	"log"
+	"fmt"
 )
-
 
 var (
-	conf string
+	conf           string
+	stdlog, errlog *log.Logger
 )
 
-
+func init() {
+	stdlog = log.New(os.Stdout, "", log.Ldate|log.Ltime)
+	errlog = log.New(os.Stderr, "", log.Ldate|log.Ltime)
+}
 
 func main() {
 
@@ -24,19 +29,16 @@ func main() {
 	srv, err := daemon.New(Config.APPName, Config.Description)
 
 	if err != nil {
-		log.Critical("Cannot create daemon\n Error: ", err)
+		errlog.Println("Error: ", err)
 		os.Exit(1)
 	}
 
 	service := NewService(&Config, srv)
-
-	service.TCPHubListener = NewTCPHubListener(Config.Hub.Tcp.Service)
-	service.TCPHubListener.Service = service
-
-	service.TCPClientListener = NewTCPClientListener(Config.Client.Tcp.Service)
-	service.TCPClientListener.Service = service
-	//go ListenHub(Config.Hub.Tcp.MaxBytes, Config.Hub.Tcp.Service, &hubMap)
-	go service.TCPHubListener.Start(Config.Hub.Tcp.MaxBytes)
-	go service.TCPClientListener.Start(Config.Client.Tcp.MaxBytes, service.TCPHubListener.HubTable)
-	service.Logger(Config.LogFile)
+	go service.Logger(Config.LogFile)
+	status, err := service.Manage()
+	if err != nil {
+		errlog.Println("Error: ", err)
+		os.Exit(1)
+	}
+	fmt.Println(status)
 }

@@ -1,9 +1,9 @@
 package main
 
 type ConfigType struct {
-	APPName string `default:"SquirrelMC"`
+	APPName string `default:"smc"`
 	Description string `default:"Squirrel Message Channel"`
-	LogFile string `default:"./log.txt"`
+	LogFile string `default:"/Users/lichenxi/GoglandProjects/Glide/bin/log.txt"`
 	Hub struct{
 		Tcp struct{
 			Service string `default:"127.0.0.1:8001"`

@@ -31,7 +31,7 @@ func NewTCPHubListener(service string) *TCPHubListener {
 		return nil
 	}
 
-	log.Info("Hub listener listening at %s", service)
+	logger.Info("Hub listener listening at %s", service)
 
 	return &TCPHubListener{
 		Listener:   listener,
@@ -52,7 +52,7 @@ func NewTCPClientListener(service string) *TCPClientListener {
 	if !CheckErr(err) {
 		return nil
 	}
-	log.Info("Client listener listening at %s", service)
+	logger.Info("Client listener listening at %s", service)
 
 	return &TCPClientListener{
 		Listener: listener,
