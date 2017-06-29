@@ -1,18 +1,18 @@
 package main
 
 import (
-	"net"
+	"io"
 )
 
-type TCPClient struct {
+type SocketClient struct {
 	Service *Service
-	Conn    *net.TCPConn
-	Hub     *TCPHub
+	Conn    io.ReadWriteCloser
+	Hub     *SocketHub
 	Message chan []byte
 	Signal  chan string
 }
 
-func (s *TCPClient) HandConn(conn *net.TCPConn, bytes int,  hub *TCPHub) {
+func (s *SocketClient) HandConn(conn io.ReadWriteCloser, bytes int,  hub *SocketHub) {
 	s.Conn = conn
 	s.Hub = hub
 	s.Hub.Register <- s
@@ -27,7 +27,7 @@ func (s *TCPClient) HandConn(conn *net.TCPConn, bytes int,  hub *TCPHub) {
 	}
 }
 
-func (s *TCPClient) Broadcast() {
+func (s *SocketClient) Broadcast() {
 	Circle:
 	for {
 		select {
@@ -42,8 +42,8 @@ func (s *TCPClient) Broadcast() {
 	}
 }
 
-func NewTCPClient() *TCPClient {
-	return &TCPClient{
+func NewSocketClient() *SocketClient {
+	return &SocketClient{
 		Message:make(chan []byte, 100),
 		Signal:make(chan string, 100),
 	}

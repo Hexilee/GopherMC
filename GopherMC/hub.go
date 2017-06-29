@@ -1,30 +1,30 @@
 package main
 
 import (
-	"net"
+	"io"
 )
 
-type TCPHub struct {
+type SocketHub struct {
 	Service    *Service
-	Listener   *TCPHubListener
-	Conn       *net.TCPConn
-	Clients    map[*TCPClient]bool
-	Register   chan *TCPClient
-	Unregister chan *TCPClient
+	Listener   *SocketHubListener
+	Conn       io.ReadWriteCloser
+	Clients    map[*SocketClient]bool
+	Register   chan *SocketClient
+	Unregister chan *SocketClient
 	Broadcast  chan []byte
 	Receiver   chan []byte
 	Signal     chan string
 	Name       string
 }
 
-func (s *TCPHub) Start(conn *net.TCPConn, MaxBytes int) {
+func (s *SocketHub) Start(conn io.ReadWriteCloser, MaxBytes int) {
 	go s.HandConn(conn, MaxBytes)
 	go s.RegisterClient()
 	go s.SendMessage()
 	go s.ClientWriter()
 }
 
-func (s *TCPHub) ClientWriter() {
+func (s *SocketHub) ClientWriter() {
 Circle:
 	for {
 		select {
@@ -50,7 +50,7 @@ Circle:
 	}
 }
 
-func (s *TCPHub) RegisterClient() {
+func (s *SocketHub) RegisterClient() {
 Circle:
 	for {
 		select {
@@ -67,7 +67,7 @@ Circle:
 	}
 }
 
-func (s *TCPHub) SendMessage() {
+func (s *SocketHub) SendMessage() {
 Circle:
 	for {
 		select {
@@ -82,7 +82,7 @@ Circle:
 	}
 }
 
-func (s *TCPHub) HandConn(conn *net.TCPConn, bytes int) {
+func (s *SocketHub) HandConn(conn io.ReadWriteCloser, bytes int) {
 	s.Conn = conn
 	//s.Conn.SetReadDeadline(time.Now().Add(10 * time.Minute))
 	defer s.Conn.Close()
@@ -96,13 +96,13 @@ func (s *TCPHub) HandConn(conn *net.TCPConn, bytes int) {
 	}
 }
 
-func NewTCPHub() *TCPHub {
-	return &TCPHub{
-		Register:   make(chan *TCPClient, 1000),
-		Unregister: make(chan *TCPClient, 1000),
+func NewSocketHub() *SocketHub {
+	return &SocketHub{
+		Register:   make(chan *SocketClient, 1000),
+		Unregister: make(chan *SocketClient, 1000),
 		Broadcast:  make(chan []byte, 2000),
 		Receiver:   make(chan []byte, 2000),
-		Clients:    make(map[*TCPClient]bool),
+		Clients:    make(map[*SocketClient]bool),
 		Signal:     make(chan string, 100),
 	}
 }

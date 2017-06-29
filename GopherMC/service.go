@@ -20,8 +20,8 @@ var (
 
 type Service struct {
 	daemon.Daemon
-	TCPHubListener    *TCPHubListener
-	TCPClientListener *TCPClientListener
+	SocketHubListener    *SocketHubListener
+	SocketClientListener *SocketClientListener
 	Signal            chan string
 	Info              chan string
 	Error             chan *error
@@ -101,14 +101,14 @@ func (s *Service) Manage() (string, error) {
 	// Set up listener for defined host and port
 
 	// set up channel on which to send accepted connections
-	s.TCPHubListener = NewTCPHubListener(Config.Hub.Tcp.Service)
-	s.TCPHubListener.Service = s
+	s.SocketHubListener = NewSocketHubListener(Config.Hub.Tcp.Service)
+	s.SocketHubListener.Service = s
 
-	s.TCPClientListener = NewTCPClientListener(Config.Client.Tcp.Service)
-	s.TCPClientListener.Service = s
+	s.SocketClientListener = NewSocketClientListener(Config.Client.Tcp.Service)
+	s.SocketClientListener.Service = s
 	////go ListenHub(Config.Hub.Tcp.MaxBytes, Config.Hub.Tcp.Service, &hubMap)
-	go s.TCPHubListener.Start(Config.Hub.Tcp.MaxBytes)
-	go s.TCPClientListener.Start(Config.Client.Tcp.MaxBytes, s.TCPHubListener.HubTable)
+	go s.SocketHubListener.Start(Config.Hub.Tcp.MaxBytes)
+	go s.SocketClientListener.Start(Config.Client.Tcp.MaxBytes, s.SocketHubListener.HubTable)
 	s.Logger(Config.LogFile)
 	// loop work cycle with accept connections or interrupt
 	// by system signal
@@ -131,20 +131,20 @@ func (s *Service) Manage() (string, error) {
 //		if Type == "client" {
 //			switch protocal {
 //			case "socket":
-//				if s.TCPHubListener == nil {
-//					return "TCPHubListener is closed", nil
+//				if s.SocketHubListener == nil {
+//					return "SocketHubListener is closed", nil
 //				}
-//				s.TCPClientListener = NewTCPClientListener(Config.Client.Tcp.Service)
-//				s.TCPClientListener.Service = s
-//				s.TCPClientListener.Start(Config.Hub.Tcp.MaxBytes, s.TCPHubListener.HubTable)
+//				s.SocketClientListener = NewSocketClientListener(Config.Client.Tcp.Service)
+//				s.SocketClientListener.Service = s
+//				s.SocketClientListener.Start(Config.Hub.Tcp.MaxBytes, s.SocketHubListener.HubTable)
 //				return "TCP socket client started at " + Config.Client.Tcp.Service, nil
 //			}
 //		} else if Type == "hub" {
 //			switch protocal {
 //			case "socket":
-//				s.TCPHubListener = NewTCPHubListener(Config.Hub.Tcp.Service)
-//				s.TCPHubListener.Service = s
-//				s.TCPHubListener.Start(Config.Hub.Tcp.MaxBytes)
+//				s.SocketHubListener = NewSocketHubListener(Config.Hub.Tcp.Service)
+//				s.SocketHubListener.Service = s
+//				s.SocketHubListener.Start(Config.Hub.Tcp.MaxBytes)
 //				return "TCP socket hub started at " + Config.Hub.Tcp.Service, nil
 //			}
 //		}

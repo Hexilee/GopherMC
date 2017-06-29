@@ -5,21 +5,21 @@ import (
 	S "golang.org/x/sync/syncmap"
 )
 
-type TCPHubListener struct {
+type SocketHubListener struct {
 	Service    *Service
 	Listener   *net.TCPListener
 	Signal     chan string
 	HubTable   *S.Map
-	Unregister chan *TCPHub
+	Unregister chan *SocketHub
 }
 
-type TCPClientListener struct {
+type SocketClientListener struct {
 	Service  *Service
 	Listener *net.TCPListener
 	Signal   chan string
 }
 
-func NewTCPHubListener(service string) *TCPHubListener {
+func NewSocketHubListener(service string) *SocketHubListener {
 
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", service)
 	if !CheckErr(err) {
@@ -33,15 +33,15 @@ func NewTCPHubListener(service string) *TCPHubListener {
 
 	logger.Info("Hub listener listening at %s", service)
 
-	return &TCPHubListener{
+	return &SocketHubListener{
 		Listener:   listener,
 		Signal:     make(chan string, 1000),
 		HubTable:   &S.Map{},
-		Unregister: make(chan *TCPHub, 100),
+		Unregister: make(chan *SocketHub, 100),
 	}
 }
 
-func NewTCPClientListener(service string) *TCPClientListener {
+func NewSocketClientListener(service string) *SocketClientListener {
 
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", service)
 	if !CheckErr(err) {
@@ -54,13 +54,13 @@ func NewTCPClientListener(service string) *TCPClientListener {
 	}
 	logger.Info("Client listener listening at %s", service)
 
-	return &TCPClientListener{
+	return &SocketClientListener{
 		Listener: listener,
 		Signal:   make(chan string, 1000),
 	}
 }
 
-func (t *TCPHubListener) Start(MaxBytes int) {
+func (t *SocketHubListener) Start(MaxBytes int) {
 	for {
 		conn, err := t.Listener.AcceptTCP()
 		if !CheckErr(err) {
@@ -74,7 +74,7 @@ func (t *TCPHubListener) Start(MaxBytes int) {
 	}
 }
 
-func (t *TCPHubListener) RemoveHub() {
+func (t *SocketHubListener) RemoveHub() {
 Circle:
 	for {
 		select {
@@ -90,12 +90,12 @@ Circle:
 	}
 }
 
-func (t *TCPHubListener) HandConn(conn *net.TCPConn, MaxBytes int) {
+func (t *SocketHubListener) HandConn(conn *net.TCPConn, MaxBytes int) {
 	var registerInfo [32]byte
 	conn.Read(registerInfo[:])
 	connName := string(registerInfo[:])
 
-	newHub := NewTCPHub()
+	newHub := NewSocketHub()
 	_, ok := t.HubTable.LoadOrStore(connName, newHub)
 	if ok {
 		conn.Write([]byte("The hub already exist!\n"))
@@ -113,7 +113,7 @@ func (t *TCPHubListener) HandConn(conn *net.TCPConn, MaxBytes int) {
 	go newHub.Start(conn, MaxBytes)
 }
 
-func (t *TCPClientListener) Start(MaxBytes int, HubTable *S.Map) {
+func (t *SocketClientListener) Start(MaxBytes int, HubTable *S.Map) {
 	for {
 		conn, err := t.Listener.AcceptTCP()
 		if !CheckErr(err) {
@@ -127,7 +127,7 @@ func (t *TCPClientListener) Start(MaxBytes int, HubTable *S.Map) {
 	}
 }
 
-func (t *TCPClientListener) HandConn(conn *net.TCPConn, MaxBytes int, HubTable *S.Map) {
+func (t *SocketClientListener) HandConn(conn *net.TCPConn, MaxBytes int, HubTable *S.Map) {
 	var registerInfo [32]byte
 	conn.Read(registerInfo[:])
 	connName := string(registerInfo[:])
@@ -137,7 +137,7 @@ func (t *TCPClientListener) HandConn(conn *net.TCPConn, MaxBytes int, HubTable *
 		conn.Close()
 		return
 	}
-	actualHub, ok := hub.(*TCPHub)
+	actualHub, ok := hub.(*SocketHub)
 	if !ok {
 		conn.Write([]byte("Bad Gate\n"))
 		conn.Close()
@@ -147,7 +147,7 @@ func (t *TCPClientListener) HandConn(conn *net.TCPConn, MaxBytes int, HubTable *
 	if !SecureWrite([]byte("Register successfully!\n"), conn) {
 		return
 	}
-	newClient := NewTCPClient()
+	newClient := NewSocketClient()
 	newClient.Service = t.Service
 	go newClient.HandConn(conn, MaxBytes, actualHub)
 	go newClient.Broadcast()
