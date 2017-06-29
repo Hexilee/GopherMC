@@ -133,7 +133,7 @@ func (t *TCPClientListener) HandConn(conn *net.TCPConn, MaxBytes int, HubTable *
 	connName := string(registerInfo[:])
 	hub, ok := HubTable.Load(connName)
 	if !ok {
-		conn.Write([]byte("No hub named!" + connName))
+		conn.Write([]byte("No hub named " + connName))
 		conn.Close()
 		return
 	}

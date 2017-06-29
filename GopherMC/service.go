@@ -67,7 +67,7 @@ func NewService(Config *ConfigType, srv daemon.Daemon) *Service {
 
 func (s *Service) Manage() (string, error) {
 
-	usage := "Usage: SquirrelMC restart | start | stop | status"
+	usage := "Usage: GopherMC restart | start | stop | status"
 
 	// if received any kind of command, do it
 	if len(os.Args) > 1 {
@@ -149,9 +149,9 @@ func (s *Service) Manage() (string, error) {
 //			}
 //		}
 //	}
-//	return "Use SquirrelMC start [service type] socket | ws", nil
+//	return "Use GopherMC start [service type] socket | ws", nil
 //}
 
 func (s *Service) Restart() (string, error) {
-	return "Use SquirrelMC restart [service type] socket | ws", nil
+	return "Use GopherMC restart [service type] socket | ws", nil
 }

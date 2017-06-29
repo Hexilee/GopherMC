@@ -1,5 +1,5 @@
-# Squirrel Message Channel (Middleware)
+# Gopher Message Channel (Middleware)
 
 ## Introduction
-   SquirrelMC is a high performance, distributed message queue written in Golang,
+   GopherMC is a high performance, distributed message queue written in Golang,
 as it implements queue by natural channel, which can generate excellent power with goroutine.
