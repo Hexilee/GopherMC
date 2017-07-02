@@ -89,8 +89,9 @@ func (s *SocketHub) HandConn(conn io.ReadWriteCloser, bytes int) {
 	for {
 		var data = make([]byte, bytes, bytes)
 		_, err := s.Conn.Read(data)
-		if DealConnErr(err, conn) {
+		if !DealConnErr(err, conn, s.Service) {
 			s.Listener.Unregister <- s
+			break
 		}
 		s.Broadcast <- data
 	}

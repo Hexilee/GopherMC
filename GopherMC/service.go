@@ -14,7 +14,7 @@ var (
 	// which is dependent on the log level. Many fields have a custom output
 	// formatting too, eg. the time returns the hour down to the milli second.
 	format = logging.MustStringFormatter(
-		`%{color}%{time:15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`,
+		`%{time:15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{id:03x} %{message}`,
 	)
 )
 
@@ -22,10 +22,10 @@ type Service struct {
 	daemon.Daemon
 	SocketHubListener    *SocketHubListener
 	SocketClientListener *SocketClientListener
-	Signal            chan string
-	Info              chan string
-	Error             chan *error
-	Config            *ConfigType
+	Signal               chan string
+	Info                 chan string
+	Error                chan *error
+	Config               *ConfigType
 }
 
 func (s *Service) Logger(logfile string) {
@@ -101,27 +101,27 @@ func (s *Service) Manage() (string, error) {
 	// Set up listener for defined host and port
 
 	// set up channel on which to send accepted connections
-	s.SocketHubListener = NewSocketHubListener(Config.Hub.Tcp.Service)
+	s.SocketHubListener = NewSocketHubListener(Config.Hub.Tcp.Service, s)
 	s.SocketHubListener.Service = s
 
-	s.SocketClientListener = NewSocketClientListener(Config.Client.Tcp.Service)
+	s.SocketClientListener = NewSocketClientListener(Config.Client.Tcp.Service, s)
 	s.SocketClientListener.Service = s
 	////go ListenHub(Config.Hub.Tcp.MaxBytes, Config.Hub.Tcp.Service, &hubMap)
-	go s.SocketHubListener.Start(Config.Hub.Tcp.MaxBytes)
-	go s.SocketClientListener.Start(Config.Client.Tcp.MaxBytes, s.SocketHubListener.HubTable)
-	s.Logger(Config.LogFile)
+	go s.SocketHubListener.Start(Config.Hub.Tcp.MaxBytes, s)
+	go s.SocketClientListener.Start(Config.Client.Tcp.MaxBytes, s.SocketHubListener.HubTable, s)
+	go s.Logger(Config.LogFile)
 	// loop work cycle with accept connections or interrupt
 	// by system signal
-	//for {
-	//	select {
-	//	case killSignal := <-interrupt:
-	//		s.Info <- "Got signal:" + killSignal.String()
-	//		if killSignal == os.Interrupt {
-	//			return "Daemon was interruped by system signal", nil
-	//		}
-	return "Daemon was killed", nil
-	//	}
-	//}
+	for {
+		select {
+		case killSignal := <-interrupt:
+			s.Info <- "Got signal:" + killSignal.String()
+			if killSignal == os.Interrupt {
+				return "Daemon was interruped by system signal", nil
+			}
+			return "Daemon was killed", nil
+		}
+	}
 }
 
 //func (s *Service) Start() (string, error) {

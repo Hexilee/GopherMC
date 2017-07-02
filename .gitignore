@@ -2,3 +2,4 @@ glide.lock
 glide.yaml
 vendor/
 testGo/
+GopherServer/

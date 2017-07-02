@@ -1,10 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"io"
 	"encoding/binary"
-	"net"
 	"bufio"
 	"bytes"
 	"errors"
@@ -14,30 +12,31 @@ const (
 	headerLen int = 4
 )
 
-func CheckErr(err error) bool {
+func CheckErr(err error, srv *Service) bool {
 	if err != nil {
-		fmt.Println(err)
+		srv.Error <- &err
 		return false
 	}
 	return true
 }
 
-func DealConnErr(err error, closer io.Closer) bool {
+func DealConnErr(err error, closer io.Closer, srv *Service) bool {
 	if err != nil {
 		closer.Close()
+		srv.Error <- &err
 		return false
 	}
 	return true
 }
 
-func SecureWrite(msg []byte, writeCloser io.WriteCloser) bool {
+func SecureWrite(msg []byte, writeCloser io.WriteCloser, srv *Service) bool {
 	_, err := writeCloser.Write(msg)
-	return DealConnErr(err, writeCloser)
+	return DealConnErr(err, writeCloser, srv)
 }
 
-func SecureRead(msg []byte, ReadCloser io.ReadCloser) bool {
+func SecureRead(msg []byte, ReadCloser io.ReadCloser, srv *Service) bool {
 	_, err := ReadCloser.Read(msg)
-	return DealConnErr(err, ReadCloser)
+	return DealConnErr(err, ReadCloser, srv)
 }
 
 //func ListenHub(bytes int, service string, hubtable *S.Map) {
@@ -118,7 +117,7 @@ func SecureRead(msg []byte, ReadCloser io.ReadCloser) bool {
 
 
 
-func SocketRead(conn net.Conn, ch chan []byte, serv *Service) {
+func SocketRead(conn io.ReadWriteCloser, ch chan []byte, serv *Service) {
 	scanner := bufio.NewScanner(conn)
 	split := func(data []byte, atEOF bool) (adv int, token []byte, err error) {
 		length := len(data)
@@ -153,6 +152,7 @@ func SocketRead(conn net.Conn, ch chan []byte, serv *Service) {
 		ch <- msg
 	}
 	if scanner.Err() != nil {
-		serv.Error <- &scanner.Err()
+		err := scanner.Err()
+		serv.Error <- &err
 	}
 }

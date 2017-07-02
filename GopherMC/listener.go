@@ -19,15 +19,15 @@ type SocketClientListener struct {
 	Signal   chan string
 }
 
-func NewSocketHubListener(service string) *SocketHubListener {
+func NewSocketHubListener(service string, srv *Service) *SocketHubListener {
 
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", service)
-	if !CheckErr(err) {
+	if !CheckErr(err, srv) {
 		return nil
 	}
 
 	listener, err := net.ListenTCP("tcp", tcpAddr)
-	if !CheckErr(err) {
+	if !CheckErr(err, srv) {
 		return nil
 	}
 
@@ -41,15 +41,15 @@ func NewSocketHubListener(service string) *SocketHubListener {
 	}
 }
 
-func NewSocketClientListener(service string) *SocketClientListener {
+func NewSocketClientListener(service string, srv *Service) *SocketClientListener {
 
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", service)
-	if !CheckErr(err) {
+	if !CheckErr(err, srv) {
 		return nil
 	}
 
 	listener, err := net.ListenTCP("tcp", tcpAddr)
-	if !CheckErr(err) {
+	if !CheckErr(err, srv) {
 		return nil
 	}
 	logger.Info("Client listener listening at %s", service)
@@ -60,17 +60,17 @@ func NewSocketClientListener(service string) *SocketClientListener {
 	}
 }
 
-func (t *SocketHubListener) Start(MaxBytes int) {
+func (t *SocketHubListener) Start(MaxBytes int, srv *Service) {
 	for {
 		conn, err := t.Listener.AcceptTCP()
-		if !CheckErr(err) {
+		if !CheckErr(err , srv) {
 			continue
 		}
-		if !SecureWrite([]byte("Fine, connected\n"), conn) {
+		if !SecureWrite([]byte("Fine, connected\n"), conn, srv) {
 			continue
 		}
 
-		go t.HandConn(conn, MaxBytes)
+		go t.HandConn(conn, MaxBytes, srv)
 	}
 }
 
@@ -90,7 +90,7 @@ Circle:
 	}
 }
 
-func (t *SocketHubListener) HandConn(conn *net.TCPConn, MaxBytes int) {
+func (t *SocketHubListener) HandConn(conn *net.TCPConn, MaxBytes int, srv *Service) {
 	var registerInfo [32]byte
 	conn.Read(registerInfo[:])
 	connName := string(registerInfo[:])
@@ -103,7 +103,7 @@ func (t *SocketHubListener) HandConn(conn *net.TCPConn, MaxBytes int) {
 		return
 	}
 	newHub.Conn = conn
-	if !SecureWrite([]byte("Register successfully!\n"), conn) {
+	if !SecureWrite([]byte("Register successfully!\n"), conn, srv) {
 		return
 	}
 	newHub.Listener = t
@@ -113,21 +113,21 @@ func (t *SocketHubListener) HandConn(conn *net.TCPConn, MaxBytes int) {
 	go newHub.Start(conn, MaxBytes)
 }
 
-func (t *SocketClientListener) Start(MaxBytes int, HubTable *S.Map) {
+func (t *SocketClientListener) Start(MaxBytes int, HubTable *S.Map, srv *Service) {
 	for {
 		conn, err := t.Listener.AcceptTCP()
-		if !CheckErr(err) {
+		if !CheckErr(err, srv) {
 			continue
 		}
-		if !SecureWrite([]byte("Fine, connected\n"), conn) {
+		if !SecureWrite([]byte("Fine, connected\n"), conn, srv) {
 			continue
 		}
 
-		go t.HandConn(conn, MaxBytes, HubTable)
+		go t.HandConn(conn, MaxBytes, HubTable, srv)
 	}
 }
 
-func (t *SocketClientListener) HandConn(conn *net.TCPConn, MaxBytes int, HubTable *S.Map) {
+func (t *SocketClientListener) HandConn(conn *net.TCPConn, MaxBytes int, HubTable *S.Map, srv *Service) {
 	var registerInfo [32]byte
 	conn.Read(registerInfo[:])
 	connName := string(registerInfo[:])
@@ -144,7 +144,7 @@ func (t *SocketClientListener) HandConn(conn *net.TCPConn, MaxBytes int, HubTabl
 		return
 	}
 
-	if !SecureWrite([]byte("Register successfully!\n"), conn) {
+	if !SecureWrite([]byte("Register successfully!\n"), conn, srv) {
 		return
 	}
 	newClient := NewSocketClient()

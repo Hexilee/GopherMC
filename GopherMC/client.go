@@ -18,12 +18,13 @@ func (s *SocketClient) HandConn(conn io.ReadWriteCloser, bytes int,  hub *Socket
 	s.Hub.Register <- s
 	//s.Conn.SetReadDeadline(time.Now().Add(10 * time.Minute))
 	defer s.Conn.Close()
+	//SocketRead(s.Conn, s.Hub.Receiver, s.Service)
 	for {
 		var data = make([]byte, bytes, bytes)
-		_, err := s.Conn.Read(data)
-		CheckErr(err)
+		//_, err := s.Conn.Read(data)
+		//CheckErr(err)
+		SecureRead(data, conn, s.Service)
 		s.Hub.Receiver <- data
-		s.Conn.Write([]byte("Received\n"))
 	}
 }
 

@@ -34,7 +34,7 @@ func main() {
 	}
 
 	service := NewService(&Config, srv)
-	go service.Logger(Config.LogFile)
+	//go service.Logger(Config.LogFile)
 	status, err := service.Manage()
 	if err != nil {
 		errlog.Println("Error: ", err)
