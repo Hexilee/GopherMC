@@ -4,6 +4,7 @@ import (
 	"net"
 	S "golang.org/x/sync/syncmap"
 	"fmt"
+	"context"
 )
 
 type SocketHubListener struct {
@@ -13,6 +14,8 @@ type SocketHubListener struct {
 	HubTable    *S.Map
 	Unregister  chan *SocketHub
 	HubRecycler chan *SocketHub
+	Context     context.Context
+	Cancel      context.CancelFunc
 }
 
 type SocketClientListener struct {
@@ -20,6 +23,8 @@ type SocketClientListener struct {
 	Listener       *net.TCPListener
 	Signal         chan string
 	ClientRecycler chan *SocketClient
+	Context        context.Context
+	Cancel         context.CancelFunc
 }
 
 func NewSocketHubListener(service string, srv *Service) *SocketHubListener {
@@ -39,7 +44,7 @@ func NewSocketHubListener(service string, srv *Service) *SocketHubListener {
 
 	return &SocketHubListener{
 		Listener:    listener,
-		Signal:      make(chan string, 1000),
+		Signal:      make(chan string, 5),
 		HubTable:    &S.Map{},
 		Unregister:  make(chan *SocketHub, 1000),
 		HubRecycler: make(chan *SocketHub, 1000),
@@ -62,7 +67,7 @@ func NewSocketClientListener(service string, srv *Service) *SocketClientListener
 
 	return &SocketClientListener{
 		Listener:       listener,
-		Signal:         make(chan string, 1000),
+		Signal:         make(chan string, 5),
 		ClientRecycler: make(chan *SocketClient, 10000),
 	}
 }
@@ -85,17 +90,13 @@ func (t *SocketHubListener) RecycleHub() {
 Circle:
 	for {
 		select {
+		case <- t.Context.Done():
+			break Circle
 		case deadHub := <-t.Unregister:
-			//deadHub.Conn.Close()
-			//deadHub.Signal <- "kill"
 			if deadHub.Clean() {
 				t.HubRecycler <- deadHub
 			}
 			t.HubTable.Delete(deadHub.Name)
-		case signal := <-t.Signal:
-			if signal == "kill" {
-				break Circle
-			}
 		}
 	}
 }
@@ -125,6 +126,9 @@ func (t *SocketHubListener) HandConn(conn *net.TCPConn, MaxBytes int, srv *Servi
 		newHub.Service = t.Service
 	}
 
+	socketHubCtx, socketHubCancel := context.WithCancel(t.Context)
+	newHub.Context = socketHubCtx
+	newHub.Cancel = socketHubCancel
 	newHub.Conn = conn
 	if !SecureWrite([]byte("Register successfully!\n"), conn, srv) {
 		return
@@ -168,7 +172,13 @@ func (t *SocketClientListener) HandConn(conn *net.TCPConn, MaxBytes int, HubTabl
 		return
 	}
 	newClient := NewSocketClient()
+	newClient.Listener = t
 	newClient.Service = t.Service
-	go newClient.HandConn(conn, MaxBytes, actualHub)
+	newClient.Hub = actualHub
+	socketClientCtx, socketClientCancel := context.WithCancel(actualHub.Context)
+	newClient.Context = socketClientCtx
+	newClient.Cancel = socketClientCancel
+
+	go newClient.HandConn(conn, MaxBytes)
 	go newClient.Broadcast()
 }

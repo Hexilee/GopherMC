@@ -2,6 +2,7 @@ package main
 
 import (
 	"io"
+	"context"
 )
 
 type SocketHub struct {
@@ -15,6 +16,8 @@ type SocketHub struct {
 	Receiver   chan []byte
 	Signal     chan string
 	Name       string
+	Context     context.Context
+	Cancel      context.CancelFunc
 }
 
 func (s *SocketHub) Start(conn io.ReadWriteCloser, MaxBytes int) {
@@ -35,63 +38,64 @@ func (s *SocketHub) ClientWriter() {
 Circle:
 	for {
 		select {
+		case <-s.Context.Done():
+			break Circle
 		case data := <-s.Broadcast:
 			for client, in := range s.Clients {
 				if in {
 					client.Message <- data
 				}
 			}
-		case signal := <-s.Signal:
-			if signal == "kill" {
-				//s.Listener.Unregister <- s
-				s.Signal <- "kill"
-				break Circle
-			}
 		}
 	}
 }
 
 func (s *SocketHub) RegisterClient() {
-Circle:
-	for {
-		select {
-		case client := <-s.Register:
-			s.Clients[client] = true
-		case client := <-s.Unregister:
-			delete(s.Clients, client)
-		case signal := <-s.Signal:
-			if signal == "kill" {
-				s.Signal <- "kill"
-				break Circle
-			}
-		}
-	}
+
 	defer func() {
 		p := recover()
 		CheckPanic(p, s.Service, "Hub RegisterClient panic!")
 	}()
-}
 
-func (s *SocketHub) SendMessage() {
 Circle:
 	for {
 		select {
-		case message := <-s.Receiver:
-			s.Conn.Write(message)
-		case signal := <-s.Signal:
-			if signal == "kill" {
-				s.Signal <- "kill"
-				break Circle
-			}
+		case <-s.Context.Done():
+			break Circle
+		case client := <-s.Register:
+			s.Clients[client] = true
+		case client := <-s.Unregister:
+			delete(s.Clients, client)
+
 		}
 	}
+}
+
+func (s *SocketHub) SendMessage() {
+
 	defer func() {
 		p := recover()
 		CheckPanic(p, s.Service, "Hub SendMessage panic!")
 	}()
+
+Circle:
+	for {
+		select {
+		case <-s.Context.Done():
+			break Circle
+		case message := <-s.Receiver:
+			s.Conn.Write(message)
+		}
+	}
 }
 
 func (s *SocketHub) HandConn(conn io.ReadWriteCloser, bytes int) {
+
+	defer func() {
+		p := recover()
+		CheckPanic(p, s.Service, "Hub HandConn panic!")
+	}()
+
 	s.Conn = conn
 	//s.Conn.SetReadDeadline(time.Now().Add(10 * time.Minute))
 	defer s.Conn.Close()
@@ -105,13 +109,17 @@ func (s *SocketHub) HandConn(conn io.ReadWriteCloser, bytes int) {
 		}
 		s.Broadcast <- data
 	}
-	defer func() {
-		p := recover()
-		CheckPanic(p, s.Service, "Hub HandConn panic!")
-	}()
 }
 
 func (s *SocketHub) Clean() (ok bool) {
+
+	defer func() {
+		p := recover()
+		if !CheckPanic(p, s.Service, "Hub Clean panic!") {
+			ok = false
+		}
+	}()
+
 	s.Conn.Close()
 	close(s.Register)
 	close(s.Unregister)
@@ -125,12 +133,6 @@ func (s *SocketHub) Clean() (ok bool) {
 	s.Signal = make(chan string, 100)
 	s.Clients = make(map[*SocketClient]bool)
 	ok = true
-	defer func() {
-		p := recover()
-		if !CheckPanic(p, s.Service, "Hub Clean panic!") {
-			ok = false
-		}
-	}()
 	return
 }
 
@@ -142,5 +144,6 @@ func NewSocketHub() *SocketHub {
 		Receiver:   make(chan []byte, 2000),
 		Clients:    make(map[*SocketClient]bool),
 		Signal:     make(chan string, 100),
+
 	}
 }

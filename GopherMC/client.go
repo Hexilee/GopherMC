@@ -2,17 +2,21 @@ package main
 
 import (
 	"io"
+	"context"
 )
 
 type SocketClient struct {
-	Service *Service
-	Conn    io.ReadWriteCloser
-	Hub     *SocketHub
-	Message chan []byte
-	Signal  chan string
+	Service  *Service
+	Conn     io.ReadWriteCloser
+	Listener *SocketClientListener
+	Hub      *SocketHub
+	Message  chan []byte
+	Signal   chan string
+	Context  context.Context
+	Cancel   context.CancelFunc
 }
 
-func (s *SocketClient) HandConn(conn io.ReadWriteCloser, bytes int,  hub *SocketHub) {
+func (s *SocketClient) HandConn(conn io.ReadWriteCloser, bytes int) {
 
 	defer func() {
 		s.Conn.Close()
@@ -21,7 +25,6 @@ func (s *SocketClient) HandConn(conn io.ReadWriteCloser, bytes int,  hub *Socket
 	}()
 
 	s.Conn = conn
-	s.Hub = hub
 	s.Hub.Register <- s
 	//s.Conn.SetReadDeadline(time.Now().Add(10 * time.Minute))
 	//SocketRead(s.Conn, s.Hub.Receiver, s.Service)
@@ -35,12 +38,12 @@ func (s *SocketClient) HandConn(conn io.ReadWriteCloser, bytes int,  hub *Socket
 }
 
 func (s *SocketClient) Broadcast() {
-	Circle:
+Circle:
 	for {
 		select {
-		case message := <- s.Message:
+		case message := <-s.Message:
 			s.Conn.Write(message)
-		case signal := <- s.Signal:
+		case signal := <-s.Signal:
 			if signal == "kill" {
 				s.Conn.Close()
 				break Circle
@@ -56,7 +59,7 @@ func (s *SocketClient) Broadcast() {
 
 func NewSocketClient() *SocketClient {
 	return &SocketClient{
-		Message:make(chan []byte, 100),
-		Signal:make(chan string, 100),
+		Message: make(chan []byte, 100),
+		Signal:  make(chan string, 100),
 	}
 }

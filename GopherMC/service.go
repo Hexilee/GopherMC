@@ -6,6 +6,7 @@ import (
 	"github.com/op/go-logging"
 	"os/signal"
 	"syscall"
+	"context"
 )
 
 var (
@@ -26,6 +27,8 @@ type Service struct {
 	Info                 chan string
 	Error                chan *error
 	Config               *ConfigType
+	Context              context.Context
+	Cancel               context.CancelFunc
 }
 
 func (s *Service) Logger(logfile string) {
@@ -56,12 +59,15 @@ func (s *Service) Logger(logfile string) {
 }
 
 func NewService(Config *ConfigType, srv daemon.Daemon) *Service {
+	ctx, cancelFunc := context.WithCancel(context.Background())
 	return &Service{
-		Daemon: srv,
-		Signal: make(chan string, 10000),
-		Info:   make(chan string, 100000),
-		Error:  make(chan *error, 10000),
-		Config: Config,
+		Daemon:  srv,
+		Signal:  make(chan string, 10),
+		Info:    make(chan string, 100000),
+		Error:   make(chan *error, 10000),
+		Config:  Config,
+		Context: ctx,
+		Cancel:  cancelFunc,
 	}
 }
 
@@ -101,11 +107,17 @@ func (s *Service) Manage() (string, error) {
 	// Set up listener for defined host and port
 
 	// set up channel on which to send accepted connections
+	socketHubCtx, socketHubCancel := context.WithCancel(s.Context)
 	s.SocketHubListener = NewSocketHubListener(Config.Hub.Tcp.Service, s)
 	s.SocketHubListener.Service = s
+	s.SocketHubListener.Context = socketHubCtx
+	s.SocketHubListener.Cancel = socketHubCancel
 
+	socketClientCtx, socketClientCancel := context.WithCancel(s.Context)
 	s.SocketClientListener = NewSocketClientListener(Config.Client.Tcp.Service, s)
 	s.SocketClientListener.Service = s
+	s.SocketClientListener.Context = socketClientCtx
+	s.SocketClientListener.Cancel = socketClientCancel
 	////go ListenHub(Config.Hub.Tcp.MaxBytes, Config.Hub.Tcp.Service, &hubMap)
 	go s.SocketHubListener.Start(Config.Hub.Tcp.MaxBytes, s)
 	go s.SocketClientListener.Start(Config.Client.Tcp.MaxBytes, s.SocketHubListener.HubTable, s)
