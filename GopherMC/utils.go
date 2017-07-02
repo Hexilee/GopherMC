@@ -3,6 +3,15 @@ package main
 import (
 	"fmt"
 	"io"
+	"encoding/binary"
+	"net"
+	"bufio"
+	"bytes"
+	"errors"
+)
+
+const (
+	headerLen int = 4
 )
 
 func CheckErr(err error) bool {
@@ -12,7 +21,6 @@ func CheckErr(err error) bool {
 	}
 	return true
 }
-
 
 func DealConnErr(err error, closer io.Closer) bool {
 	if err != nil {
@@ -31,8 +39,6 @@ func SecureRead(msg []byte, ReadCloser io.ReadCloser) bool {
 	_, err := ReadCloser.Read(msg)
 	return DealConnErr(err, ReadCloser)
 }
-
-
 
 //func ListenHub(bytes int, service string, hubtable *S.Map) {
 //	tcpAddr, err := net.ResolveTCPAddr("tcp4", service)
@@ -109,3 +115,47 @@ func SecureRead(msg []byte, ReadCloser io.ReadCloser) bool {
 //		}()
 //	}
 //}
+
+
+
+func SocketRead(conn net.Conn, ch chan []byte, serv *Service) {
+	scanner := bufio.NewScanner(conn)
+	split := func(data []byte, atEOF bool) (adv int, token []byte, err error) {
+		l := len(data)
+		if l < headerLen*3 {
+			return 0, nil, nil
+		}
+		if l > 1048576 { //1024*1024=1048576
+			conn.Close()
+			serv.Info <- "invalid query!"
+			return 0, nil, errors.New("too large data!")
+		}
+		var l1, l2, l3 uint32
+		buf := bytes.NewReader(data)
+		binary.Read(buf, binary.LittleEndian, &l1)
+		binary.Read(buf, binary.LittleEndian, &l2)
+		binary.Read(buf, binary.LittleEndian, &l3)
+		tail := l - headerLen*3
+		lhead := l1 + l2 + l3
+		if lhead > 1048576 {
+			conn.Close()
+			serv.Info <- "invalid query2!"
+			return 0, nil, errors.New("too large data!")
+		}
+		if uint32(tail) < lhead {
+			return 0, nil, nil
+		}
+		adv = headerLen*3 + int(lhead)
+		token = data[:adv]
+		return
+	}
+	scanner.Split(split)
+	for scanner.Scan() {
+		var msg []byte
+		copy(msg, scanner.Bytes())
+		ch <- msg
+	}
+	if scanner.Err() != nil {
+		serv.Error <- &scanner.Err()
+	}
+}
