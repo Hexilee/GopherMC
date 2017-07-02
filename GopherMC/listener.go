@@ -3,20 +3,23 @@ package main
 import (
 	"net"
 	S "golang.org/x/sync/syncmap"
+	"fmt"
 )
 
 type SocketHubListener struct {
-	Service    *Service
-	Listener   *net.TCPListener
-	Signal     chan string
-	HubTable   *S.Map
-	Unregister chan *SocketHub
+	Service     *Service
+	Listener    *net.TCPListener
+	Signal      chan string
+	HubTable    *S.Map
+	Unregister  chan *SocketHub
+	HubRecycler chan *SocketHub
 }
 
 type SocketClientListener struct {
-	Service  *Service
-	Listener *net.TCPListener
-	Signal   chan string
+	Service        *Service
+	Listener       *net.TCPListener
+	Signal         chan string
+	ClientRecycler chan *SocketClient
 }
 
 func NewSocketHubListener(service string, srv *Service) *SocketHubListener {
@@ -31,13 +34,15 @@ func NewSocketHubListener(service string, srv *Service) *SocketHubListener {
 		return nil
 	}
 
-	logger.Info("Hub listener listening at %s", service)
+	//logger.Info("Hub listener listening at %s", service)
+	srv.Info <- fmt.Sprintf("Hub listener listening at %s", service)
 
 	return &SocketHubListener{
-		Listener:   listener,
-		Signal:     make(chan string, 1000),
-		HubTable:   &S.Map{},
-		Unregister: make(chan *SocketHub, 100),
+		Listener:    listener,
+		Signal:      make(chan string, 1000),
+		HubTable:    &S.Map{},
+		Unregister:  make(chan *SocketHub, 1000),
+		HubRecycler: make(chan *SocketHub, 1000),
 	}
 }
 
@@ -52,18 +57,20 @@ func NewSocketClientListener(service string, srv *Service) *SocketClientListener
 	if !CheckErr(err, srv) {
 		return nil
 	}
-	logger.Info("Client listener listening at %s", service)
+	//logger.Info("Client listener listening at %s", service)
+	srv.Info <- fmt.Sprintf("Client listener listening at %s", service)
 
 	return &SocketClientListener{
-		Listener: listener,
-		Signal:   make(chan string, 1000),
+		Listener:       listener,
+		Signal:         make(chan string, 1000),
+		ClientRecycler: make(chan *SocketClient, 10000),
 	}
 }
 
 func (t *SocketHubListener) Start(MaxBytes int, srv *Service) {
 	for {
 		conn, err := t.Listener.AcceptTCP()
-		if !CheckErr(err , srv) {
+		if !CheckErr(err, srv) {
 			continue
 		}
 		if !SecureWrite([]byte("Fine, connected\n"), conn, srv) {
@@ -74,13 +81,16 @@ func (t *SocketHubListener) Start(MaxBytes int, srv *Service) {
 	}
 }
 
-func (t *SocketHubListener) RemoveHub() {
+func (t *SocketHubListener) RecycleHub() {
 Circle:
 	for {
 		select {
 		case deadHub := <-t.Unregister:
-			deadHub.Conn.Close()
-			deadHub.Signal <- "kill"
+			//deadHub.Conn.Close()
+			//deadHub.Signal <- "kill"
+			if deadHub.Clean() {
+				t.HubRecycler <- deadHub
+			}
 			t.HubTable.Delete(deadHub.Name)
 		case signal := <-t.Signal:
 			if signal == "kill" {
@@ -95,20 +105,30 @@ func (t *SocketHubListener) HandConn(conn *net.TCPConn, MaxBytes int, srv *Servi
 	conn.Read(registerInfo[:])
 	connName := string(registerInfo[:])
 
-	newHub := NewSocketHub()
+	var newHub *SocketHub
+
 	_, ok := t.HubTable.LoadOrStore(connName, newHub)
 	if ok {
 		conn.Write([]byte("The hub already exist!\n"))
 		conn.Close()
 		return
 	}
+
+	select {
+	case binHub := <-t.HubRecycler:
+		newHub = binHub
+		newHub.Name = connName
+	default:
+		newHub = NewSocketHub()
+		newHub.Listener = t
+		newHub.Name = connName
+		newHub.Service = t.Service
+	}
+
 	newHub.Conn = conn
 	if !SecureWrite([]byte("Register successfully!\n"), conn, srv) {
 		return
 	}
-	newHub.Listener = t
-	newHub.Name = connName
-	newHub.Service = t.Service
 
 	go newHub.Start(conn, MaxBytes)
 }

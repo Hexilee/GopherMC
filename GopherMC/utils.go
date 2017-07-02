@@ -20,6 +20,15 @@ func CheckErr(err error, srv *Service) bool {
 	return true
 }
 
+func CheckPanic(panic interface{}, srv *Service, errInfo string) bool {
+	if panic != nil {
+		err := errors.New(errInfo)
+		srv.Error <- &err
+		return false
+	}
+	return true
+}
+
 func DealConnErr(err error, closer io.Closer, srv *Service) bool {
 	if err != nil {
 		closer.Close()

@@ -13,11 +13,17 @@ type SocketClient struct {
 }
 
 func (s *SocketClient) HandConn(conn io.ReadWriteCloser, bytes int,  hub *SocketHub) {
+
+	defer func() {
+		s.Conn.Close()
+		p := recover()
+		CheckPanic(p, s.Service, "Client HandConn panic")
+	}()
+
 	s.Conn = conn
 	s.Hub = hub
 	s.Hub.Register <- s
 	//s.Conn.SetReadDeadline(time.Now().Add(10 * time.Minute))
-	defer s.Conn.Close()
 	//SocketRead(s.Conn, s.Hub.Receiver, s.Service)
 	for {
 		var data = make([]byte, bytes, bytes)
@@ -41,6 +47,11 @@ func (s *SocketClient) Broadcast() {
 			}
 		}
 	}
+	defer func() {
+		s.Conn.Close()
+		p := recover()
+		CheckPanic(p, s.Service, "Client Broadcast panic")
+	}()
 }
 
 func NewSocketClient() *SocketClient {
