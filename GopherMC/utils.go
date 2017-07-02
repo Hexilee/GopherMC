@@ -121,22 +121,19 @@ func SecureRead(msg []byte, ReadCloser io.ReadCloser) bool {
 func SocketRead(conn net.Conn, ch chan []byte, serv *Service) {
 	scanner := bufio.NewScanner(conn)
 	split := func(data []byte, atEOF bool) (adv int, token []byte, err error) {
-		l := len(data)
-		if l < headerLen*3 {
+		length := len(data)
+		if length < headerLen {
 			return 0, nil, nil
 		}
-		if l > 1048576 { //1024*1024=1048576
+		if length > 1048576 { //1024*1024=1048576
 			conn.Close()
 			serv.Info <- "invalid query!"
 			return 0, nil, errors.New("too large data!")
 		}
-		var l1, l2, l3 uint32
+		var lhead uint32
 		buf := bytes.NewReader(data)
-		binary.Read(buf, binary.LittleEndian, &l1)
-		binary.Read(buf, binary.LittleEndian, &l2)
-		binary.Read(buf, binary.LittleEndian, &l3)
-		tail := l - headerLen*3
-		lhead := l1 + l2 + l3
+		binary.Read(buf, binary.LittleEndian, &lhead)
+		tail := length - headerLen
 		if lhead > 1048576 {
 			conn.Close()
 			serv.Info <- "invalid query2!"
@@ -145,7 +142,7 @@ func SocketRead(conn net.Conn, ch chan []byte, serv *Service) {
 		if uint32(tail) < lhead {
 			return 0, nil, nil
 		}
-		adv = headerLen*3 + int(lhead)
+		adv = headerLen + int(lhead)
 		token = data[:adv]
 		return
 	}
