@@ -4,22 +4,14 @@ import (
 	"flag"
 	"github.com/jinzhu/configor"
 	"os"
-	"log"
 	"fmt"
 )
 
 var (
-	conf           string
-	stdlog, errlog *log.Logger
+	conf string
 )
 
-func init() {
-	stdlog = log.New(os.Stdout, "", log.Ldate|log.Ltime)
-	errlog = log.New(os.Stderr, "", log.Ldate|log.Ltime)
-}
-
 func main() {
-
 	flag.StringVar(&conf, "f", "./config.conf", "the path config file, the default is ./config.conf")
 	flag.Parse()
 
@@ -29,7 +21,7 @@ func main() {
 	//go service.Logger(Config.LogFile)
 	status, err := service.Start()
 	if err != nil {
-		errlog.Println("Error: ", err)
+		fmt.Println("Error: ", err)
 		os.Exit(1)
 	}
 	fmt.Println(status)
