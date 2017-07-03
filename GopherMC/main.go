@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"github.com/jinzhu/configor"
-	"github.com/takama/daemon"
 	"os"
 	"log"
 	"fmt"
@@ -26,16 +25,9 @@ func main() {
 
 	configor.Load(&Config, conf)
 
-	srv, err := daemon.New(Config.APPName, Config.Description)
-
-	if err != nil {
-		errlog.Println("Error: ", err)
-		os.Exit(1)
-	}
-
-	service := NewService(&Config, srv)
+	service := NewService(&Config)
 	//go service.Logger(Config.LogFile)
-	status, err := service.Manage()
+	status, err := service.Start()
 	if err != nil {
 		errlog.Println("Error: ", err)
 		os.Exit(1)
