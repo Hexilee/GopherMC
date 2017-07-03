@@ -3,6 +3,10 @@ package main
 import (
 	"context"
 	"net"
+	"encoding/binary"
+	"errors"
+	"bytes"
+	"bufio"
 )
 
 type SocketHub struct {
@@ -90,6 +94,59 @@ Circle:
 	}
 }
 
+func (s *SocketHub) split(data []byte, atEOF bool) (adv int, token []byte, err error) {
+	length := len(data)
+	if length < headerLen {
+		return 0, nil, nil
+	}
+	if length > 1048576 { //1024*1024=1048576
+		s.Service.Info <- "Socket Hub "+ s.Name + " Read Error. Addr: " + s.Conn.RemoteAddr().String()
+		s.Cancel()
+		return 0, nil, errors.New("too large data!")
+	}
+	var lhead uint32
+	buf := bytes.NewReader(data)
+	binary.Read(buf, binary.LittleEndian, &lhead)
+
+	tail := length - headerLen
+	if lhead > 1048576 {
+		s.Service.Info <- "Socket Hub " + s.Name + " Read Error. Addr: " + s.Conn.RemoteAddr().String()
+		s.Cancel()
+		return 0, nil, errors.New("too large data!")
+	}
+	if uint32(tail) < lhead {
+		return 0, nil, nil
+	}
+	adv = headerLen + int(lhead)
+	token = data[:adv]
+	return adv, token, nil
+}
+
+func (s *SocketHub) Scan() {
+	scanner := bufio.NewScanner(s.Conn)
+	scanner.Split(s.split)
+
+Circle:
+	for scanner.Scan() {
+		select {
+		case <-s.Context.Done():
+			s.Service.Info <- "Socket Hub " + s.Name + " HandConn Done. Addr: " + s.Conn.RemoteAddr().String()
+			break Circle
+		default:
+		}
+
+		data := scanner.Bytes()
+		msg := make([]byte, len(data))
+		copy(msg, data)
+		s.Broadcast <- msg
+	}
+	if scanner.Err() != nil {
+		err := scanner.Err()
+		s.Service.Error <- &err
+	}
+}
+
+
 func (s *SocketHub) HandConn(conn net.Conn, bytes int) {
 
 	defer func() {
@@ -100,26 +157,7 @@ func (s *SocketHub) HandConn(conn net.Conn, bytes int) {
 	}()
 
 	s.Conn = conn
-	//s.Conn.SetReadDeadline(time.Now().Add(10 * time.Minute))
-Circle:
-	for {
-		var data = make([]byte, bytes, bytes)
-		_, err := s.Conn.Read(data)
-		if !DealConnErr(err, conn, s.Service) {
-			s.Service.Info <- "Socket Hub Read Error. Addr: " + s.Conn.RemoteAddr().String()
-			s.Cancel()
-			break
-		}
-
-		select {
-		case <-s.Context.Done():
-			s.Service.Info <- "Socket Client HandConn Done. Addr: " + s.Conn.RemoteAddr().String()
-			break Circle
-		default:
-		}
-
-		s.Broadcast <- data
-	}
+	s.Scan()
 }
 
 func (s *SocketHub) Clean() (ok bool) {
