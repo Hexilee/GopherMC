@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"errors"
 	"reflect"
+	"net"
 )
 
 const (
@@ -132,7 +133,7 @@ func SecureRead(msg []byte, ReadCloser io.ReadCloser, srv *Service) bool {
 //	}
 //}
 
-func SocketRead(conn io.ReadWriteCloser, ch chan []byte, srv *Service) {
+func SocketRead(conn net.Conn, ch chan []byte, srv *Service) {
 	scanner := bufio.NewScanner(conn)
 	split := func(data []byte, atEOF bool) (adv int, token []byte, err error) {
 		length := len(data)

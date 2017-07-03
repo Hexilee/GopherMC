@@ -1,14 +1,14 @@
 package main
 
 import (
-	"io"
 	"context"
+	"net"
 )
 
 type SocketHub struct {
 	Service    *Service
 	Listener   *SocketHubListener
-	Conn       io.ReadWriteCloser
+	Conn       net.Conn
 	Clients    map[*SocketClient]bool
 	Register   chan *SocketClient
 	Unregister chan *SocketClient
@@ -20,7 +20,7 @@ type SocketHub struct {
 	Cancel     context.CancelFunc
 }
 
-func (s *SocketHub) Start(conn io.ReadWriteCloser, MaxBytes int) {
+func (s *SocketHub) Start(conn net.Conn, MaxBytes int) {
 	go s.HandConn(conn, MaxBytes)
 	go s.RegisterClient()
 	go s.SendMessage()
@@ -38,6 +38,7 @@ Circle:
 	for {
 		select {
 		case <-s.Context.Done():
+			s.Service.Info <- "Socket Hub ClientWriter Done. Addr: " + s.Conn.RemoteAddr().String()
 			break Circle
 		case data := <-s.Broadcast:
 			for client, in := range s.Clients {
@@ -60,12 +61,12 @@ Circle:
 	for {
 		select {
 		case <-s.Context.Done():
+			s.Service.Info <- "Socket Hub RegisterClient Done. Addr: " + s.Conn.RemoteAddr().String()
 			break Circle
 		case client := <-s.Register:
 			s.Clients[client] = true
 		case client := <-s.Unregister:
 			delete(s.Clients, client)
-
 		}
 	}
 }
@@ -81,6 +82,7 @@ Circle:
 	for {
 		select {
 		case <-s.Context.Done():
+			s.Service.Info <- "Socket Hub SendMessage Done. Addr: " + s.Conn.RemoteAddr().String()
 			break Circle
 		case message := <-s.Receiver:
 			s.Conn.Write(message)
@@ -88,7 +90,7 @@ Circle:
 	}
 }
 
-func (s *SocketHub) HandConn(conn io.ReadWriteCloser, bytes int) {
+func (s *SocketHub) HandConn(conn net.Conn, bytes int) {
 
 	defer func() {
 		p := recover()
@@ -102,6 +104,7 @@ func (s *SocketHub) HandConn(conn io.ReadWriteCloser, bytes int) {
 		var data = make([]byte, bytes, bytes)
 		_, err := s.Conn.Read(data)
 		if !DealConnErr(err, conn, s.Service) {
+			s.Service.Info <- "Socket Hub HandConn Done. Addr: " + s.Conn.RemoteAddr().String()
 			s.Cancel()
 			s.Listener.Unregister <- s
 			break

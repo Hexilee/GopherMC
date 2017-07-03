@@ -1,13 +1,13 @@
 package main
 
 import (
-	"io"
 	"context"
+	"net"
 )
 
 type SocketClient struct {
 	Service  *Service
-	Conn     io.ReadWriteCloser
+	Conn     net.Conn
 	Listener *SocketClientListener
 	Hub      *SocketHub
 	Message  chan []byte
@@ -16,7 +16,7 @@ type SocketClient struct {
 	Cancel   context.CancelFunc
 }
 
-func (s *SocketClient) HandConn(conn io.ReadWriteCloser, bytes int) {
+func (s *SocketClient) HandConn(conn net.Conn, bytes int) {
 
 	defer func() {
 		s.Conn.Close()
@@ -32,7 +32,12 @@ func (s *SocketClient) HandConn(conn io.ReadWriteCloser, bytes int) {
 		var data = make([]byte, bytes, bytes)
 		//_, err := s.Conn.Read(data)
 		//CheckErr(err)
-		SecureRead(data, conn, s.Service)
+		if !SecureRead(data, conn, s.Service) {
+			s.Service.Info <- "Socket Client HandConn Done. Addr: " + s.Conn.RemoteAddr().String()
+			s.Cancel()
+			break
+		}
+
 		s.Hub.Receiver <- data
 	}
 }
@@ -41,25 +46,22 @@ func (s *SocketClient) Broadcast() {
 Circle:
 	for {
 		select {
+		case <-s.Context.Done():
+			s.Service.Info <- "Socket Client Broadcast Done. Addr: " + s.Conn.RemoteAddr().String()
+			break Circle
 		case message := <-s.Message:
-			s.Conn.Write(message)
-		case signal := <-s.Signal:
-			if signal == "kill" {
-				s.Conn.Close()
-				break Circle
+			if !SecureWrite(message, s.Conn, s.Service) {
+				s.Cancel()
 			}
 		}
 	}
-	defer func() {
-		s.Conn.Close()
-		p := recover()
-		CheckPanic(p, s.Service, "Client Broadcast panic")
-	}()
 }
 
 func NewSocketClient() *SocketClient {
 	return &SocketClient{
 		Message: make(chan []byte, 100),
 		Signal:  make(chan string, 100),
+		Context: context.Background(),
+		Cancel:  func() {},
 	}
 }
