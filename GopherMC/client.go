@@ -20,6 +20,9 @@ func (s *SocketClient) HandConn(conn net.Conn, bytes int) {
 
 	defer func() {
 		s.Conn.Close()
+		if s.Clean() {
+			s.Listener.ClientRecycler <- s
+		}
 		p := recover()
 		CheckPanic(p, s.Service, "Client HandConn panic")
 	}()
@@ -57,11 +60,28 @@ Circle:
 	}
 }
 
+func (s *SocketClient) Clean() (ok bool) {
+	defer func() {
+		p := recover()
+		if !CheckPanic(p, s.Service, "Hub Clean panic!") {
+			ok = false
+		}
+	}()
+
+	close(s.Message)
+	close(s.Signal)
+	s.Message = make(chan []byte, 100)
+	s.Signal = make(chan string, 5)
+
+	ok = true
+	return
+}
+
 func NewSocketClient() *SocketClient {
 	return &SocketClient{
 		Message: make(chan []byte, 100),
-		Signal:  make(chan string, 100),
-		Context: context.Background(),
-		Cancel:  func() {},
+		Signal:  make(chan string, 5),
+		//Context: context.Background(),
+		//Cancel:  func() {},
 	}
 }

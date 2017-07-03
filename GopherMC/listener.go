@@ -48,8 +48,8 @@ func NewSocketHubListener(service string, srv *Service) *SocketHubListener {
 		HubTable:    &S.Map{},
 		Unregister:  make(chan *SocketHub, 1000),
 		HubRecycler: make(chan *SocketHub, 1000),
-		Context:     context.Background(),
-		Cancel:      func() {},
+		//Context:     context.Background(),
+		//Cancel:      func() {},
 	}
 }
 
@@ -71,8 +71,8 @@ func NewSocketClientListener(service string, srv *Service) *SocketClientListener
 		Listener:       listener,
 		Signal:         make(chan string, 5),
 		ClientRecycler: make(chan *SocketClient, 10000),
-		Context:        context.Background(),
-		Cancel:         func() {},
+		//Context:        context.Background(),
+		//Cancel:         func() {},
 	}
 }
 
@@ -110,7 +110,6 @@ func (t *SocketHubListener) HandConn(conn *net.TCPConn, MaxBytes int, srv *Servi
 	conn.Read(registerInfo[:])
 	connName := string(registerInfo[:])
 
-	var newHub *SocketHub
 	_, ok := t.HubTable.Load(connName)
 	if ok {
 		conn.Write([]byte("The hub already exist!\n"))
@@ -118,6 +117,7 @@ func (t *SocketHubListener) HandConn(conn *net.TCPConn, MaxBytes int, srv *Servi
 		return
 	}
 
+	var newHub *SocketHub
 	select {
 	case binHub := <-t.HubRecycler:
 		newHub = binHub
@@ -176,9 +176,17 @@ func (t *SocketClientListener) HandConn(conn *net.TCPConn, MaxBytes int, HubTabl
 	if !SecureWrite([]byte("Register successfully!\n"), conn, srv) {
 		return
 	}
-	newClient := NewSocketClient()
-	newClient.Listener = t
-	newClient.Service = t.Service
+
+	var newClient *SocketClient
+
+	select {
+	case binClient := <-t.ClientRecycler:
+		newClient = binClient
+	default:
+		newClient = NewSocketClient()
+		newClient.Listener = t
+		newClient.Service = t.Service
+	}
 	newClient.Hub = actualHub
 	socketClientCtx, socketClientCancel := context.WithCancel(actualHub.Context)
 	newClient.Context = socketClientCtx

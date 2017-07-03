@@ -93,6 +93,8 @@ Circle:
 func (s *SocketHub) HandConn(conn net.Conn, bytes int) {
 
 	defer func() {
+		s.Conn.Close()
+		s.Listener.Unregister <- s
 		p := recover()
 		CheckPanic(p, s.Service, "Hub HandConn panic!")
 	}()
@@ -106,7 +108,6 @@ func (s *SocketHub) HandConn(conn net.Conn, bytes int) {
 		if !DealConnErr(err, conn, s.Service) {
 			s.Service.Info <- "Socket Hub HandConn Done. Addr: " + s.Conn.RemoteAddr().String()
 			s.Cancel()
-			s.Listener.Unregister <- s
 			break
 		}
 		s.Broadcast <- data
@@ -122,7 +123,6 @@ func (s *SocketHub) Clean() (ok bool) {
 		}
 	}()
 
-	s.Conn.Close()
 	close(s.Register)
 	close(s.Unregister)
 	close(s.Receiver)
@@ -146,7 +146,7 @@ func NewSocketHub() *SocketHub {
 		Receiver:   make(chan []byte, 2000),
 		Clients:    make(map[*SocketClient]bool),
 		Signal:     make(chan string, 100),
-		Context:    context.Background(),
-		Cancel:     func() {},
+		//Context:    context.Background(),
+		//Cancel:     func() {},
 	}
 }
