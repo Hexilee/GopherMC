@@ -24,8 +24,8 @@ type SocketHub struct {
 	Cancel     context.CancelFunc
 }
 
-func (s *SocketHub) Start(conn net.Conn, MaxBytes int) {
-	go s.HandConn(conn, MaxBytes)
+func (s *SocketHub) Start(conn net.Conn) {
+	go s.HandConn(conn)
 	go s.RegisterClient()
 	go s.SendMessage()
 	go s.ClientWriter()
@@ -147,7 +147,7 @@ Circle:
 }
 
 
-func (s *SocketHub) HandConn(conn net.Conn, bytes int) {
+func (s *SocketHub) HandConn(conn net.Conn) {
 
 	defer func() {
 		s.Conn.Close()
@@ -192,7 +192,5 @@ func NewSocketHub() *SocketHub {
 		Receiver:   make(chan []byte, 2000),
 		Clients:    make(map[*SocketClient]bool),
 		Signal:     make(chan string, 100),
-		//Context:    context.Background(),
-		//Cancel:     func() {},
 	}
 }

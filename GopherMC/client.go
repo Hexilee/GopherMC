@@ -24,7 +24,7 @@ type SocketClient struct {
 	Cancel   context.CancelFunc
 }
 
-func (s *SocketClient) HandConn(conn net.Conn, bytes int) {
+func (s *SocketClient) HandConn(conn net.Conn) {
 
 	defer func() {
 		s.Conn.Close()
@@ -130,7 +130,5 @@ func NewSocketClient() *SocketClient {
 	return &SocketClient{
 		Message: make(chan []byte, 100),
 		Signal:  make(chan string, 5),
-		//Context: context.Background(),
-		//Cancel:  func() {},
 	}
 }

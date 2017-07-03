@@ -11,9 +11,6 @@ import (
 
 var (
 	logger = logging.MustGetLogger("example")
-	// Example format string. Everything except the message has a custom color
-	// which is dependent on the log level. Many fields have a custom output
-	// formatting too, eg. the time returns the hour down to the milli second.
 	format = logging.MustStringFormatter(
 		`%{time:15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{id:03x} %{message}`,
 	)
@@ -119,8 +116,8 @@ func (s *Service) Manage() (string, error) {
 	s.SocketClientListener.Context = socketClientCtx
 	s.SocketClientListener.Cancel = socketClientCancel
 	////go ListenHub(Config.Hub.Tcp.MaxBytes, Config.Hub.Tcp.Service, &hubMap)
-	go s.SocketHubListener.Start(Config.Hub.Tcp.MaxBytes, s)
-	go s.SocketClientListener.Start(Config.Client.Tcp.MaxBytes, s.SocketHubListener.HubTable, s)
+	go s.SocketHubListener.Start(s)
+	go s.SocketClientListener.Start(s.SocketHubListener.HubTable, s)
 	go s.Logger(Config.LogFile)
 	// loop work cycle with accept connections or interrupt
 	// by system signal

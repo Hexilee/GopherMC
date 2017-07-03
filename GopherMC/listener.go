@@ -76,7 +76,7 @@ func NewSocketClientListener(service string, srv *Service) *SocketClientListener
 	}
 }
 
-func (t *SocketHubListener) Start(MaxBytes int, srv *Service) {
+func (t *SocketHubListener) Start(srv *Service) {
 	for {
 		conn, err := t.Listener.AcceptTCP()
 		if !CheckErr(err, srv) {
@@ -86,7 +86,7 @@ func (t *SocketHubListener) Start(MaxBytes int, srv *Service) {
 			continue
 		}
 
-		go t.HandConn(conn, MaxBytes, srv)
+		go t.HandConn(conn, srv)
 	}
 }
 
@@ -105,7 +105,7 @@ Circle:
 	}
 }
 
-func (t *SocketHubListener) HandConn(conn *net.TCPConn, MaxBytes int, srv *Service) {
+func (t *SocketHubListener) HandConn(conn *net.TCPConn, srv *Service) {
 	var registerInfo [32]byte
 	conn.Read(registerInfo[:])
 	connName := string(registerInfo[:])
@@ -139,10 +139,10 @@ func (t *SocketHubListener) HandConn(conn *net.TCPConn, MaxBytes int, srv *Servi
 		return
 	}
 	t.Service.Info <- conn.RemoteAddr().String() + " hub register as " + connName
-	go newHub.Start(conn, MaxBytes)
+	go newHub.Start(conn)
 }
 
-func (t *SocketClientListener) Start(MaxBytes int, HubTable *S.Map, srv *Service) {
+func (t *SocketClientListener) Start(HubTable *S.Map, srv *Service) {
 	for {
 		conn, err := t.Listener.AcceptTCP()
 		if !CheckErr(err, srv) {
@@ -152,11 +152,11 @@ func (t *SocketClientListener) Start(MaxBytes int, HubTable *S.Map, srv *Service
 			continue
 		}
 
-		go t.HandConn(conn, MaxBytes, HubTable, srv)
+		go t.HandConn(conn, HubTable, srv)
 	}
 }
 
-func (t *SocketClientListener) HandConn(conn *net.TCPConn, MaxBytes int, HubTable *S.Map, srv *Service) {
+func (t *SocketClientListener) HandConn(conn *net.TCPConn, HubTable *S.Map, srv *Service) {
 	var registerInfo [32]byte
 	conn.Read(registerInfo[:])
 	connName := string(registerInfo[:])
@@ -193,6 +193,6 @@ func (t *SocketClientListener) HandConn(conn *net.TCPConn, MaxBytes int, HubTabl
 	newClient.Context = socketClientCtx
 	newClient.Cancel = socketClientCancel
 
-	go newClient.HandConn(conn, MaxBytes)
+	go newClient.HandConn(conn)
 	go newClient.Broadcast()
 }
