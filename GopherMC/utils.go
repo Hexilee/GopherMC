@@ -16,24 +16,22 @@ const (
 
 func CheckErr(err error, srv *Service) bool {
 	if err != nil {
-		if reflect.TypeOf(err).String() == "runtime.plainError" {
-			srv.Error <- &err
-			return false
-		}
-		panic(err)
+		srv.Error <- &err
+		return false
 	}
 	return true
 }
 
-func CheckPanic(panic interface{}, srv *Service, errInfo string) bool {
-	if panic != nil {
-		panicErr, ok := panic.(error)
-		if ok {
+func CheckPanic(_panic interface{}, srv *Service, errInfo string) bool {
+	if _panic != nil {
+		panicErr, ok := _panic.(error)
+		if ok && reflect.TypeOf(panicErr).String() == "runtime.plainError" {
 			srv.Error <- &panicErr
+			err := errors.New(errInfo)
+			srv.Error <- &err
+			return false
 		}
-		err := errors.New(errInfo)
-		srv.Error <- &err
-		return false
+		panic(_panic)
 	}
 	return true
 }

@@ -31,14 +31,22 @@ func (s *SocketClient) HandConn(conn net.Conn, bytes int) {
 	s.Hub.Register <- s
 	//s.Conn.SetReadDeadline(time.Now().Add(10 * time.Minute))
 	//SocketRead(s.Conn, s.Hub.Receiver, s.Service)
+Circle:
 	for {
 		var data = make([]byte, bytes, bytes)
 		//_, err := s.Conn.Read(data)
 		//CheckErr(err)
 		if !SecureRead(data, conn, s.Service) {
-			s.Service.Info <- "Socket Client HandConn Done. Addr: " + s.Conn.RemoteAddr().String()
+			s.Service.Info <- "Socket Client Read Error. Addr: " + s.Conn.RemoteAddr().String()
 			s.Cancel()
 			break
+		}
+
+		select {
+		case <-s.Context.Done():
+			s.Service.Info <- "Socket Client HandConn Done. Addr: " + s.Conn.RemoteAddr().String()
+			break Circle
+		default:
 		}
 
 		s.Hub.Receiver <- data

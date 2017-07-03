@@ -101,15 +101,23 @@ func (s *SocketHub) HandConn(conn net.Conn, bytes int) {
 
 	s.Conn = conn
 	//s.Conn.SetReadDeadline(time.Now().Add(10 * time.Minute))
-	defer s.Conn.Close()
+Circle:
 	for {
 		var data = make([]byte, bytes, bytes)
 		_, err := s.Conn.Read(data)
 		if !DealConnErr(err, conn, s.Service) {
-			s.Service.Info <- "Socket Hub HandConn Done. Addr: " + s.Conn.RemoteAddr().String()
+			s.Service.Info <- "Socket Hub Read Error. Addr: " + s.Conn.RemoteAddr().String()
 			s.Cancel()
 			break
 		}
+
+		select {
+		case <-s.Context.Done():
+			s.Service.Info <- "Socket Client HandConn Done. Addr: " + s.Conn.RemoteAddr().String()
+			break Circle
+		default:
+		}
+
 		s.Broadcast <- data
 	}
 }
