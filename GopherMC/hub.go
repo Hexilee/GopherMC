@@ -85,7 +85,7 @@ Circle:
 			s.Service.Info <- "Socket Hub SendMessage Done. Addr: " + s.Conn.RemoteAddr().String()
 			break Circle
 		case message := <-s.Receiver:
-			s.Conn.Write(message)
+			SecureWrite(message, s.Conn, s.Service)
 		}
 	}
 }

@@ -10,9 +10,6 @@ import (
 	"net"
 )
 
-const (
-	headerLen int = 4
-)
 
 func CheckErr(err error, srv *Service) bool {
 	if err != nil {
@@ -131,7 +128,7 @@ func SecureRead(msg []byte, ReadCloser io.ReadCloser, srv *Service) bool {
 //	}
 //}
 
-func SocketRead(conn net.Conn, ch chan []byte, srv *Service) {
+func SocketHubRead(conn net.Conn, ch chan<- []byte , srv *Service) {
 	scanner := bufio.NewScanner(conn)
 	split := func(data []byte, atEOF bool) (adv int, token []byte, err error) {
 		length := len(data)

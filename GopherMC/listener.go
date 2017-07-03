@@ -138,7 +138,7 @@ func (t *SocketHubListener) HandConn(conn *net.TCPConn, MaxBytes int, srv *Servi
 	if !SecureWrite([]byte("Register successfully!\n"), conn, srv) {
 		return
 	}
-
+	t.Service.Info <- conn.RemoteAddr().String() + " hub register as " + connName
 	go newHub.Start(conn, MaxBytes)
 }
 
@@ -176,6 +176,7 @@ func (t *SocketClientListener) HandConn(conn *net.TCPConn, MaxBytes int, HubTabl
 	if !SecureWrite([]byte("Register successfully!\n"), conn, srv) {
 		return
 	}
+	t.Service.Info <- conn.RemoteAddr().String() + " client register hub " + connName
 
 	var newClient *SocketClient
 
