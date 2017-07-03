@@ -48,6 +48,8 @@ func NewSocketHubListener(service string, srv *Service) *SocketHubListener {
 		HubTable:    &S.Map{},
 		Unregister:  make(chan *SocketHub, 1000),
 		HubRecycler: make(chan *SocketHub, 1000),
+		Context:     context.Background(),
+		Cancel:      func() {},
 	}
 }
 
@@ -69,6 +71,8 @@ func NewSocketClientListener(service string, srv *Service) *SocketClientListener
 		Listener:       listener,
 		Signal:         make(chan string, 5),
 		ClientRecycler: make(chan *SocketClient, 10000),
+		Context:        context.Background(),
+		Cancel:         func() {},
 	}
 }
 
@@ -90,7 +94,7 @@ func (t *SocketHubListener) RecycleHub() {
 Circle:
 	for {
 		select {
-		case <- t.Context.Done():
+		case <-t.Context.Done():
 			break Circle
 		case deadHub := <-t.Unregister:
 			if deadHub.Clean() {
@@ -107,8 +111,7 @@ func (t *SocketHubListener) HandConn(conn *net.TCPConn, MaxBytes int, srv *Servi
 	connName := string(registerInfo[:])
 
 	var newHub *SocketHub
-
-	_, ok := t.HubTable.LoadOrStore(connName, newHub)
+	_, ok := t.HubTable.Load(connName)
 	if ok {
 		conn.Write([]byte("The hub already exist!\n"))
 		conn.Close()
@@ -125,6 +128,8 @@ func (t *SocketHubListener) HandConn(conn *net.TCPConn, MaxBytes int, srv *Servi
 		newHub.Name = connName
 		newHub.Service = t.Service
 	}
+
+	t.HubTable.Store(connName, newHub)
 
 	socketHubCtx, socketHubCancel := context.WithCancel(t.Context)
 	newHub.Context = socketHubCtx

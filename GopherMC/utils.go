@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"reflect"
 )
 
 const (
@@ -14,14 +15,21 @@ const (
 
 func CheckErr(err error, srv *Service) bool {
 	if err != nil {
-		srv.Error <- &err
-		return false
+		if reflect.TypeOf(err).String() == "runtime.plainError" {
+			srv.Error <- &err
+			return false
+		}
+		panic(err)
 	}
 	return true
 }
 
 func CheckPanic(panic interface{}, srv *Service, errInfo string) bool {
 	if panic != nil {
+		panicErr, ok := panic.(error)
+		if ok {
+			srv.Error <- &panicErr
+		}
 		err := errors.New(errInfo)
 		srv.Error <- &err
 		return false
@@ -124,9 +132,7 @@ func SecureRead(msg []byte, ReadCloser io.ReadCloser, srv *Service) bool {
 //	}
 //}
 
-
-
-func SocketRead(conn io.ReadWriteCloser, ch chan []byte, serv *Service) {
+func SocketRead(conn io.ReadWriteCloser, ch chan []byte, srv *Service) {
 	scanner := bufio.NewScanner(conn)
 	split := func(data []byte, atEOF bool) (adv int, token []byte, err error) {
 		length := len(data)
@@ -135,7 +141,7 @@ func SocketRead(conn io.ReadWriteCloser, ch chan []byte, serv *Service) {
 		}
 		if length > 1048576 { //1024*1024=1048576
 			conn.Close()
-			serv.Info <- "invalid query!"
+			srv.Info <- "invalid query!"
 			return 0, nil, errors.New("too large data!")
 		}
 		var lhead uint32
@@ -144,7 +150,7 @@ func SocketRead(conn io.ReadWriteCloser, ch chan []byte, serv *Service) {
 		tail := length - headerLen
 		if lhead > 1048576 {
 			conn.Close()
-			serv.Info <- "invalid query2!"
+			srv.Info <- "invalid query2!"
 			return 0, nil, errors.New("too large data!")
 		}
 		if uint32(tail) < lhead {
@@ -162,6 +168,6 @@ func SocketRead(conn io.ReadWriteCloser, ch chan []byte, serv *Service) {
 	}
 	if scanner.Err() != nil {
 		err := scanner.Err()
-		serv.Error <- &err
+		srv.Error <- &err
 	}
 }

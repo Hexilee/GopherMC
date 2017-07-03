@@ -16,8 +16,8 @@ type SocketHub struct {
 	Receiver   chan []byte
 	Signal     chan string
 	Name       string
-	Context     context.Context
-	Cancel      context.CancelFunc
+	Context    context.Context
+	Cancel     context.CancelFunc
 }
 
 func (s *SocketHub) Start(conn io.ReadWriteCloser, MaxBytes int) {
@@ -33,7 +33,6 @@ func (s *SocketHub) ClientWriter() {
 		p := recover()
 		CheckPanic(p, s.Service, "Hub ClientWriter panic!")
 	}()
-
 
 Circle:
 	for {
@@ -103,7 +102,7 @@ func (s *SocketHub) HandConn(conn io.ReadWriteCloser, bytes int) {
 		var data = make([]byte, bytes, bytes)
 		_, err := s.Conn.Read(data)
 		if !DealConnErr(err, conn, s.Service) {
-			s.Signal <- "kill"
+			s.Cancel()
 			s.Listener.Unregister <- s
 			break
 		}
@@ -144,6 +143,7 @@ func NewSocketHub() *SocketHub {
 		Receiver:   make(chan []byte, 2000),
 		Clients:    make(map[*SocketClient]bool),
 		Signal:     make(chan string, 100),
-
+		Context:    context.Background(),
+		Cancel:     func() {},
 	}
 }
