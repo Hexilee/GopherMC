@@ -67,6 +67,10 @@ func NewService(Config *ConfigType) *Service {
 
 func (s *Service) Start() (string, error) {
 
+	defer func() {
+		s.Cancel()
+	}()
+
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, os.Kill, syscall.SIGTERM)
 
@@ -91,9 +95,9 @@ func (s *Service) Start() (string, error) {
 		case killSignal := <-interrupt:
 			s.Info <- "Got signal:" + killSignal.String()
 			if killSignal == os.Interrupt {
-				return "Daemon was interruped by system signal", nil
+				return "GopherMC was interrupted by system signal", nil
 			}
-			return "Daemon was killed", nil
+			return "GopherMC was killed", nil
 		}
 	}
 }

@@ -28,6 +28,7 @@ func (s *SocketClient) HandConn(conn net.Conn) {
 
 	defer func() {
 		s.Conn.Close()
+		s.Cancel()
 		if s.Clean() {
 			s.Listener.ClientRecycler <- s
 		}

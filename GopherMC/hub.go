@@ -151,6 +151,7 @@ func (s *SocketHub) HandConn(conn net.Conn) {
 
 	defer func() {
 		s.Conn.Close()
+		s.Cancel()
 		s.Listener.Unregister <- s
 		p := recover()
 		CheckPanic(p, s.Service, "Hub HandConn panic!")
