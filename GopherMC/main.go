@@ -18,6 +18,9 @@ func main() {
 	configor.Load(&Config, conf)
 
 	service := NewService(&Config)
+	defer func() {
+		service.Cancel()
+	}()
 	//go service.Logger(Config.LogFile)
 	status, err := service.Start()
 	if err != nil {
