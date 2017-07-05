@@ -3,7 +3,6 @@ package main
 import (
 	"net"
 	S "golang.org/x/sync/syncmap"
-	"fmt"
 	"context"
 )
 
@@ -27,20 +26,20 @@ type SocketClientListener struct {
 	Cancel         context.CancelFunc
 }
 
-func NewSocketHubListener(service string, srv *Service) *SocketHubListener {
+func NewSocketHubListener(service string) *SocketHubListener {
 
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", service)
-	if !CheckErr(err, srv) {
+	if !CheckErr(err) {
 		return nil
 	}
 
 	listener, err := net.ListenTCP("tcp", tcpAddr)
-	if !CheckErr(err, srv) {
+	if !CheckErr(err) {
 		return nil
 	}
 
 	//logger.Info("Hub listener listening at %s", service)
-	srv.Info <- fmt.Sprintf("Hub listener listening at %s", service)
+	Logger.Info("Hub listener listening at %s", service)
 
 	return &SocketHubListener{
 		Listener:    listener,
@@ -53,19 +52,19 @@ func NewSocketHubListener(service string, srv *Service) *SocketHubListener {
 	}
 }
 
-func NewSocketClientListener(service string, srv *Service) *SocketClientListener {
+func NewSocketClientListener(service string) *SocketClientListener {
 
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", service)
-	if !CheckErr(err, srv) {
+	if !CheckErr(err) {
 		return nil
 	}
 
 	listener, err := net.ListenTCP("tcp", tcpAddr)
-	if !CheckErr(err, srv) {
+	if !CheckErr(err) {
 		return nil
 	}
 	//logger.Info("Client listener listening at %s", service)
-	srv.Info <- fmt.Sprintf("Client listener listening at %s", service)
+	Logger.Info("Client listener listening at %s", service)
 
 	return &SocketClientListener{
 		Listener:       listener,
@@ -76,17 +75,17 @@ func NewSocketClientListener(service string, srv *Service) *SocketClientListener
 	}
 }
 
-func (t *SocketHubListener) Start(srv *Service) {
+func (t *SocketHubListener) Start() {
 	for {
 		conn, err := t.Listener.AcceptTCP()
-		if !CheckErr(err, srv) {
+		if !CheckErr(err) {
 			continue
 		}
-		if !SecureWrite([]byte("Fine, connected\n"), conn, srv) {
+		if !SecureWrite([]byte("Fine, connected\n"), conn) {
 			continue
 		}
 
-		go t.HandConn(conn, srv)
+		go t.HandConn(conn)
 	}
 }
 
@@ -105,7 +104,7 @@ Circle:
 	}
 }
 
-func (t *SocketHubListener) HandConn(conn *net.TCPConn, srv *Service) {
+func (t *SocketHubListener) HandConn(conn *net.TCPConn) {
 	var registerInfo [32]byte
 	conn.Read(registerInfo[:])
 	connName := string(registerInfo[:])
@@ -135,28 +134,28 @@ func (t *SocketHubListener) HandConn(conn *net.TCPConn, srv *Service) {
 	newHub.Context = socketHubCtx
 	newHub.Cancel = socketHubCancel
 	newHub.Conn = conn
-	if !SecureWrite([]byte("Register successfully!\n"), conn, srv) {
+	if !SecureWrite([]byte("Register successfully!\n"), conn) {
 		return
 	}
-	t.Service.Info <- conn.RemoteAddr().String() + " hub register as " + connName
+	Logger.Info("%s hub register as %s", conn.RemoteAddr().String(), connName)
 	go newHub.Start(conn)
 }
 
 func (t *SocketClientListener) Start(HubTable *S.Map, srv *Service) {
 	for {
 		conn, err := t.Listener.AcceptTCP()
-		if !CheckErr(err, srv) {
+		if !CheckErr(err) {
 			continue
 		}
-		if !SecureWrite([]byte("Fine, connected\n"), conn, srv) {
+		if !SecureWrite([]byte("Fine, connected\n"), conn) {
 			continue
 		}
 
-		go t.HandConn(conn, HubTable, srv)
+		go t.HandConn(conn, HubTable)
 	}
 }
 
-func (t *SocketClientListener) HandConn(conn *net.TCPConn, HubTable *S.Map, srv *Service) {
+func (t *SocketClientListener) HandConn(conn *net.TCPConn, HubTable *S.Map) {
 	var registerInfo [32]byte
 	conn.Read(registerInfo[:])
 	connName := string(registerInfo[:])
@@ -173,10 +172,10 @@ func (t *SocketClientListener) HandConn(conn *net.TCPConn, HubTable *S.Map, srv 
 		return
 	}
 
-	if !SecureWrite([]byte("Register successfully!\n"), conn, srv) {
+	if !SecureWrite([]byte("Register successfully!\n"), conn) {
 		return
 	}
-	t.Service.Info <- conn.RemoteAddr().String() + " client register hub " + connName
+	Logger.Info("%s client register hub %s", conn.RemoteAddr().String(), connName)
 
 	var newClient *SocketClient
 

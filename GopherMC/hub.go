@@ -35,14 +35,14 @@ func (s *SocketHub) ClientWriter() {
 
 	defer func() {
 		p := recover()
-		CheckPanic(p, s.Service, "Hub ClientWriter panic!")
+		CheckPanic(p,"Hub ClientWriter panic!")
 	}()
 
 Circle:
 	for {
 		select {
 		case <-s.Context.Done():
-			s.Service.Info <- "Socket Hub ClientWriter Done. Addr: " + s.Conn.RemoteAddr().String()
+			Logger.Info("Socket Hub ClientWriter Done. Addr: " + s.Conn.RemoteAddr().String())
 			break Circle
 		case data := <-s.Broadcast:
 			for client, in := range s.Clients {
@@ -58,14 +58,14 @@ func (s *SocketHub) RegisterClient() {
 
 	defer func() {
 		p := recover()
-		CheckPanic(p, s.Service, "Hub RegisterClient panic!")
+		CheckPanic(p,"Hub RegisterClient panic!")
 	}()
 
 Circle:
 	for {
 		select {
 		case <-s.Context.Done():
-			s.Service.Info <- "Socket Hub RegisterClient Done. Addr: " + s.Conn.RemoteAddr().String()
+			Logger.Info("Socket Hub RegisterClient Done. Addr: " + s.Conn.RemoteAddr().String())
 			break Circle
 		case client := <-s.Register:
 			s.Clients[client] = true
@@ -79,17 +79,17 @@ func (s *SocketHub) SendMessage() {
 
 	defer func() {
 		p := recover()
-		CheckPanic(p, s.Service, "Hub SendMessage panic!")
+		CheckPanic(p,"Hub SendMessage panic!")
 	}()
 
 Circle:
 	for {
 		select {
 		case <-s.Context.Done():
-			s.Service.Info <- "Socket Hub SendMessage Done. Addr: " + s.Conn.RemoteAddr().String()
+			Logger.Info("Socket Hub SendMessage Done. Addr: " + s.Conn.RemoteAddr().String())
 			break Circle
 		case message := <-s.Receiver:
-			SecureWrite(message, s.Conn, s.Service)
+			SecureWrite(message, s.Conn)
 		}
 	}
 }
@@ -100,7 +100,7 @@ func (s *SocketHub) split(data []byte, atEOF bool) (adv int, token []byte, err e
 		return 0, nil, nil
 	}
 	if length > 1048576 { //1024*1024=1048576
-		s.Service.Info <- "Socket Hub "+ s.Name + " Read Error. Addr: " + s.Conn.RemoteAddr().String()
+		Logger.Info("Socket Hub %s Read Error. Addr: %s", s.Name, s.Conn.RemoteAddr().String())
 		s.Cancel()
 		return 0, nil, errors.New("too large data!")
 	}
@@ -110,7 +110,7 @@ func (s *SocketHub) split(data []byte, atEOF bool) (adv int, token []byte, err e
 
 	tail := length - headerLen
 	if lhead > 1048576 {
-		s.Service.Info <- "Socket Hub " + s.Name + " Read Error. Addr: " + s.Conn.RemoteAddr().String()
+		Logger.Info("Socket Hub %s Read Error. Addr: %s", s.Name, s.Conn.RemoteAddr().String())
 		s.Cancel()
 		return 0, nil, errors.New("too large data!")
 	}
@@ -130,7 +130,7 @@ Circle:
 	for scanner.Scan() {
 		select {
 		case <-s.Context.Done():
-			s.Service.Info <- "Socket Hub " + s.Name + " HandConn Done. Addr: " + s.Conn.RemoteAddr().String()
+			Logger.Info("Socket Hub %s HandConn Done. Addr: %s", s.Name, s.Conn.RemoteAddr().String())
 			break Circle
 		default:
 		}
@@ -142,7 +142,7 @@ Circle:
 	}
 	if scanner.Err() != nil {
 		err := scanner.Err()
-		s.Service.Error <- &err
+		Logger.Error(err.Error())
 	}
 }
 
@@ -154,7 +154,7 @@ func (s *SocketHub) HandConn(conn net.Conn) {
 		s.Cancel()
 		s.Listener.Unregister <- s
 		p := recover()
-		CheckPanic(p, s.Service, "Hub HandConn panic!")
+		CheckPanic(p, "Hub HandConn panic!")
 	}()
 
 	s.Conn = conn
@@ -165,7 +165,7 @@ func (s *SocketHub) Clean() (ok bool) {
 
 	defer func() {
 		p := recover()
-		if !CheckPanic(p, s.Service, "Hub Clean panic!") {
+		if !CheckPanic(p,"Hub Clean panic!") {
 			ok = false
 		}
 	}()

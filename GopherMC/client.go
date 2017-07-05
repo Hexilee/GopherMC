@@ -33,7 +33,7 @@ func (s *SocketClient) HandConn(conn net.Conn) {
 			s.Listener.ClientRecycler <- s
 		}
 		p := recover()
-		CheckPanic(p, s.Service, "Client HandConn panic")
+		CheckPanic(p, "Client HandConn panic")
 	}()
 
 	s.Conn = conn
@@ -46,10 +46,10 @@ Circle:
 	for {
 		select {
 		case <-s.Context.Done():
-			s.Service.Info <- "Socket Client Broadcast Done. Addr: " + s.Conn.RemoteAddr().String()
+			Logger.Info("Socket Client Broadcast Done. Addr: " + s.Conn.RemoteAddr().String())
 			break Circle
 		case message := <-s.Message:
-			if !SecureWrite(message, s.Conn, s.Service) {
+			if !SecureWrite(message, s.Conn) {
 				s.Cancel()
 			}
 		}
@@ -59,7 +59,7 @@ Circle:
 func (s *SocketClient) Clean() (ok bool) {
 	defer func() {
 		p := recover()
-		if !CheckPanic(p, s.Service, "Hub Clean panic!") {
+		if !CheckPanic(p,"Hub Clean panic!") {
 			ok = false
 		}
 	}()
@@ -79,7 +79,7 @@ func (s *SocketClient) split(data []byte, atEOF bool) (adv int, token []byte, er
 		return 0, nil, nil
 	}
 	if length > 1048576 { //1024*1024=1048576
-		s.Service.Info <- "Socket Client Read Error. Addr: " + s.Conn.RemoteAddr().String()
+		Logger.Error("Socket Client Read Error. Addr: " + s.Conn.RemoteAddr().String())
 		s.Cancel()
 		return 0, nil, errors.New("too large data!")
 	}
@@ -89,7 +89,7 @@ func (s *SocketClient) split(data []byte, atEOF bool) (adv int, token []byte, er
 
 	tail := length - headerLen
 	if lhead > 1048576 {
-		s.Service.Info <- "Socket Client Read Error. Addr: " + s.Conn.RemoteAddr().String()
+		Logger.Error("Socket Client Read Error. Addr: " + s.Conn.RemoteAddr().String())
 		s.Cancel()
 		return 0, nil, errors.New("too large data!")
 	}
@@ -109,7 +109,7 @@ Circle:
 	for scanner.Scan() {
 		select {
 		case <-s.Context.Done():
-			s.Service.Info <- "Socket Client HandConn Done. Addr: " + s.Conn.RemoteAddr().String()
+			Logger.Info("Socket Client HandConn Done. Addr: " + s.Conn.RemoteAddr().String())
 			break Circle
 		default:
 		}
@@ -121,7 +121,7 @@ Circle:
 	}
 	if scanner.Err() != nil {
 		err := scanner.Err()
-		s.Service.Error <- &err
+		Logger.Error(err.Error())
 	}
 }
 
