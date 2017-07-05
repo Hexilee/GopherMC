@@ -48,7 +48,7 @@ func (s *Service) Start() (string, error) {
 	s.SocketClientListener.Cancel = socketClientCancel
 
 	go s.SocketHubListener.Start()
-	go s.SocketClientListener.Start(s.SocketHubListener.HubTable, s)
+	go s.SocketClientListener.Start(s.SocketHubListener.HubTable)
 
 	for {
 		select {

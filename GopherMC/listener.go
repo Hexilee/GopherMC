@@ -81,10 +81,6 @@ func (t *SocketHubListener) Start() {
 		if !CheckErr(err) {
 			continue
 		}
-		if !SecureWrite([]byte("Fine, connected\n"), conn) {
-			continue
-		}
-
 		go t.HandConn(conn)
 	}
 }
@@ -141,16 +137,12 @@ func (t *SocketHubListener) HandConn(conn *net.TCPConn) {
 	go newHub.Start(conn)
 }
 
-func (t *SocketClientListener) Start(HubTable *S.Map, srv *Service) {
+func (t *SocketClientListener) Start(HubTable *S.Map) {
 	for {
 		conn, err := t.Listener.AcceptTCP()
 		if !CheckErr(err) {
 			continue
 		}
-		if !SecureWrite([]byte("Fine, connected\n"), conn) {
-			continue
-		}
-
 		go t.HandConn(conn, HubTable)
 	}
 }
